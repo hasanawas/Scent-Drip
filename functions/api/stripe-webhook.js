@@ -32,7 +32,7 @@ async function supabaseRpc(env, fn, args) {
   const key = env.SUPABASE_SECRET_KEY;
   const headers = { apikey: key, "Content-Type": "application/json" };
   if (key.startsWith("eyJ")) headers.Authorization = `Bearer ${key}`; // older "service_role" keys
-  const res = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/${fn}`, {
+  const res = await fetch(`${new URL(env.SUPABASE_URL).origin}/rest/v1/rpc/${fn}`, {
     method: "POST",
     headers,
     body: JSON.stringify(args),

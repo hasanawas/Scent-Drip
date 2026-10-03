@@ -16,14 +16,14 @@ An online perfume shop that costs **nothing** to run.
 
 | Job | Tool | Why this one | Free limit |
 |---|---|---|---|
-| Website hosting | **Cloudflare Pages** | Fastest, unlimited visitors, never sleeps | Unlimited bandwidth |
-| Server code for Stripe | **Cloudflare Pages Functions** (the `functions/` folder) | Deploys with the site, no extra service | 100,000 requests/day |
+| Website hosting | **Cloudflare Workers** (static assets) | Fastest, never sleeps | Unlimited static traffic |
+| Server code for Stripe | Same Cloudflare Worker (`worker.js` + `functions/`) | Deploys with the site, no extra service | 100,000 requests/day |
 | Database + admin login | **Supabase** | Real database with built-in security rules | 500 MB, 50k users/month |
 | Product photos | **Supabase Storage** | Same place as your data | 1 GB |
 | Order emails | **Resend** | Simplest email API, good inbox delivery | 3,000/month, 100/day |
 | Card payments | **Stripe** (test mode) | Free to test fully; swap for a local gateway later | Test mode is free |
 | Cash payments | **Cash on Delivery** (built in) | No fees | — |
-| Web address | `scent-drip.pages.dev` | Free; add a `.com` later if you want | — |
+| Web address | `scent-drip.your-name.workers.dev` | Free; add a `.com` later if you want | — |
 | Visitor stats | **Cloudflare Web Analytics** | One click, no cookie banner needed | Free |
 | Keeping the database awake | **GitHub Actions** (already set up) | Supabase pauses idle free projects | Free |
 | Design | **Canva** (photos, posts), **Figma** (optional mockups) | — | Free plans |
@@ -31,7 +31,7 @@ An online perfume shop that costs **nothing** to run.
 **Total cost: $0/month.** The only costs come later and are optional: a domain (about $10/year) and Stripe's fee on **real** payments (about 3% per sale).
 
 ```
- Customer ──► scent-drip.pages.dev (Cloudflare Pages) ──► Supabase (database, login, photos)
+ Customer ──► your site (Cloudflare) ──► Supabase (database, login, photos)
                      │                                          │
                      └─► /api/checkout ──► Stripe 💳            └─► Resend ──► 📧 your inbox
                          /api/stripe-webhook ◄── "payment received"
@@ -55,7 +55,7 @@ About **1–2 hours** in total. Do the phases in order and tick them off as you 
 | 0 | Create your accounts | 10 min |
 | 1 | Set up the database (Supabase) | 15 min |
 | 2 | Connect the website to the database | 5 min |
-| 3 | Put the website live (Cloudflare Pages) | 10 min |
+| 3 | Put the website live (Cloudflare) | 10 min |
 | 4 | Finish the login settings | 5 min |
 | 5 | Order emails (Resend) | 10 min |
 | 6 | Visitor stats (Cloudflare Web Analytics) | 2 min |
@@ -126,25 +126,34 @@ Use the **same email** everywhere if you can. It makes things simpler.
 
 ---
 
-## Phase 3: Put the website live (Cloudflare Pages)
+## Phase 3: Put the website live (Cloudflare)
 
-1. Go to https://dash.cloudflare.com → left menu **Workers & Pages** (it may be under **Compute**) → **Create application**.
-2. Choose the **Pages** tab (or click *"Looking to deploy Pages? Get started"*) → **Import an existing Git repository** → **Get started**.
-3. **Connect GitHub**, then allow Cloudflare access to the **Scent-Drip** repo. Select it → **Begin setup**.
-4. Fill in the settings:
+The repo works both as a Cloudflare **Worker** (Cloudflare's default today) and as a **Pages** project. Use the Worker option below.
+
+1. Go to https://dash.cloudflare.com → left menu **Workers & Pages** (it may be under **Compute**) → **Create application** (or **Create**).
+2. Click **Import a repository** (Continue with GitHub) → **Connect GitHub** → allow access to the **Scent-Drip** repo → select it.
+3. Fill in the settings:
 
    | Setting | Value |
    |---|---|
-   | Project name | `scent-drip` (this becomes **scent-drip.pages.dev**; if it's taken, try `scentdrip` or `scent-drip-store`) |
-   | Production branch | `main`, or the branch that has this code |
-   | Framework preset | **None** |
-   | Build command | *leave empty* (if Cloudflare insists, type `exit 0`) |
-   | Build output directory | `/` |
+   | Project name | `scent-drip` (it **must** match `"name"` in `wrangler.jsonc`) |
+   | Build command | *leave empty* |
+   | Deploy command | `npx wrangler deploy` (the default) |
+   | Advanced → Production branch (if shown) | the branch that has this code (e.g. `fistwebapp/scentdrip` or `main`) |
 
-   Cloudflare automatically finds the `functions/` folder (the Stripe code). There's nothing else to set up here.
+4. Click **Create and deploy** (or **Deploy**). Wait 1–2 minutes until the build shows **Success** ✅.
+5. On the project page, go to **Settings** → **Domains & Routes**. Next to **workers.dev**, click **Enable** if it isn't already.
+   If the overview says **"No URLs enabled"**, this is the fix.
+6. Your address appears on the **Overview** page, e.g. **https://scent-drip.your-name.workers.dev** 🎉
+   Your admin page is the same address + **/admin**. Bookmark both on your phone.
 
-5. Click **Save and Deploy**. Wait about 1 minute and you'll see **Success** ✅.
-6. Open **https://scent-drip.pages.dev** 🎉 Your admin page is **https://scent-drip.pages.dev/admin**. Bookmark it on your phone too.
+<details>
+<summary>Alternative: deploy as a Pages project instead</summary>
+
+**Workers & Pages** → **Create** → at the bottom click *"Looking to deploy Pages? Get started"* → **Import an existing Git repository**. Then use: Framework preset **None**, Build command *empty*, Build output directory `/`. Your address will be `https://scent-drip.pages.dev`.
+</details>
+
+In the rest of this guide, **"your address"** means the one from step 6 (for example `https://scent-drip.your-name.workers.dev`).
 
 > ✨ From now on, **every change you commit to GitHub goes live automatically** within about a minute.
 
@@ -153,7 +162,7 @@ Use the **same email** everywhere if you can. It makes things simpler.
 ## Phase 4: Finish the login settings
 
 In Supabase go to **Authentication** → **URL Configuration**:
-- **Site URL:** `https://scent-drip.pages.dev` (your real address) → **Save**.
+- **Site URL:** your address from Phase 3 (e.g. `https://scent-drip.your-name.workers.dev`) → **Save**.
 
 Then open `/admin` on your live site and **log in** with the email and password from Phase 1.
 You should see the **Orders** and **Inventory** tabs. If it says *"This account is not an admin"*, redo Phase 1, step 5.
@@ -171,7 +180,7 @@ You should see the **Orders** and **Inventory** tabs. If it says *"This account 
    update public.app_settings set
      resend_api_key = 're_xxxxxxxxxxxxxxxxxxxx',
      notify_email   = 'the-email-you-signed-up-to-resend-with@gmail.com',
-     shop_url       = 'https://scent-drip.pages.dev',
+     shop_url       = 'https://scent-drip.your-name.workers.dev',  -- your address
      currency       = 'LKR'
    where id = 1;
    ```
@@ -245,7 +254,7 @@ Test mode works **exactly** like real payments, but uses fake cards and no money
 
 ### 8d. Tell Stripe where to send "payment received"
 1. Stripe → **Developers** → **Webhooks** → **Add endpoint** (or **Add destination** → *Webhook endpoint*).
-2. **Endpoint URL:** `https://scent-drip.pages.dev/api/stripe-webhook` (use your real address).
+2. **Endpoint URL:** your address + `/api/stripe-webhook`, e.g. `https://scent-drip.your-name.workers.dev/api/stripe-webhook`.
 3. **Events to send:** select these 4:
    - `checkout.session.completed`
    - `checkout.session.expired`
@@ -255,7 +264,7 @@ Test mode works **exactly** like real payments, but uses fake cards and no money
 5. Back in Cloudflare → **Variables and Secrets**, add `STRIPE_WEBHOOK_SECRET` = `whsec_…` (Type: Secret).
 
 ### 8e. Redeploy so Cloudflare picks up the keys
-Cloudflare → **scent-drip** → **Deployments** → on the latest deployment click **⋯** → **Retry deployment**.
+Saving variables in the Worker's **Settings** applies them straight away (Cloudflare redeploys for you). On a **Pages** project, go to **Deployments** → latest → **⋯** → **Retry deployment** instead.
 (Any new commit to GitHub also redeploys.)
 
 ### 8f. Test a payment 🧪
@@ -300,7 +309,7 @@ Cloudflare → **scent-drip** → **Deployments** → on the latest deployment c
 
 Do this on **your phone** *and* a computer:
 
-- [ ] The shop opens at `https://scent-drip.pages.dev` and shows your perfumes with photos.
+- [ ] The shop opens at your address and shows your perfumes with photos.
 - [ ] Search and the Men / Women / Unisex filters work.
 - [ ] Add a perfume to the bag → Checkout → place a **test order** with your own details.
 - [ ] You get the **order email** (Phase 5).
@@ -323,7 +332,7 @@ When everything works in test mode and you're ready for real money, choose one o
 **A) Stay with Stripe** (if Stripe supports businesses in your country, see https://stripe.com/global):
 1. Stripe → **Activate payments** (business and bank details, ID verification).
 2. Switch **Test mode off**, then repeat **8a** (live key `sk_live_…`) and **8d** (a **new** webhook for live mode gives a new `whsec_…`).
-3. Update `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Cloudflare → **Retry deployment**.
+3. Update `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Cloudflare → **Settings** → **Variables and Secrets**.
 4. In `js/config.js` set `STRIPE_TEST_MODE: false`.
 
 **B) Switch to a local gateway**: **PayHere** (Sri Lanka), **Razorpay** (India), **Safepay** (Pakistan), **Paystack / Flutterwave** (Africa), and so on. Stripe doesn't accept businesses in some countries (for example Sri Lanka and Pakistan).
@@ -333,7 +342,7 @@ Every gateway charges about **2–4% per real sale**, with no monthly fee.
 
 ### 🌐 Your own domain (`scentdrip.com`)
 - Costs about **$10–15/year**. **Cloudflare Registrar** sells domains at cost.
-- Connect it: Cloudflare → your Pages project → **Custom domains** → **Set up a domain**.
+- Connect it: Cloudflare → your project → **Settings** → **Domains & Routes** → **Add** → **Custom domain**.
 - Then update **Supabase → Authentication → URL Configuration → Site URL**, and `shop_url` in `app_settings`.
 
 ### ✉️ Confirmation emails to customers
@@ -361,7 +370,7 @@ Customers who enter an email at checkout will then get an order confirmation aut
 | Handle a new order | 📧 email arrives → call or WhatsApp the customer → set **Confirmed** → **Shipped** → **Delivered** |
 | Cancel an order | Set it to **Cancelled** (stock goes back automatically) |
 | See profit | **Orders** tab (sales and profit) · **Inventory** tab (profit per bottle, stock value) |
-| See visitors | Cloudflare → your Pages project → **Metrics** |
+| See visitors | Cloudflare → your project → **Metrics** / Web Analytics |
 
 ---
 
@@ -373,7 +382,7 @@ Customers who enter an email at checkout will then get an order confirmation aut
 - **Authenticity:** only sell genuine products, and don't use brands' logos or official ad photos without permission.
 - **Backups:** the free Supabase plan has no automatic backups. About once a month: **Table Editor** → `orders`, `order_items`, `perfumes`, `perfume_costs` → **Export → CSV**.
 - **Security:** strong unique passwords and 2FA everywhere. Keep sign-ups **off** (Phase 1). Never paste `sb_secret_…` / `service_role` / `re_…` / `sk_…` / `whsec_…` keys into this repo. Secret keys live only in **Cloudflare Variables** (Stripe, Supabase secret) and inside the **database** (Resend).
-- **Free plan limits** (plenty for a starting shop): Supabase 500 MB database, 1 GB photos, 50,000 monthly users · Resend 100 emails/day · Cloudflare Pages unlimited visitors, Functions 100,000 requests/day.
+- **Free plan limits** (plenty for a starting shop): Supabase 500 MB database, 1 GB photos, 50,000 monthly users · Resend 100 emails/day · Cloudflare unlimited static traffic, 100,000 Worker requests/day.
 
 ---
 
@@ -385,12 +394,14 @@ Customers who enter an email at checkout will then get an order confirmation aut
 | "This account is not an admin" | Run Phase 1, step 5 with the **exact** email you log in with. |
 | "Login failed: Invalid login credentials" | Wrong password. Reset it in Supabase → Authentication → Users → ⋯ → **Send password recovery**, or create the user again. |
 | Shop says "Couldn't load the drip" | The Supabase project may be **paused**. Open the Supabase dashboard → **Restore project**. |
-| "Card payments aren't set up yet" at checkout | A Cloudflare variable is missing or misspelled (Phase 8c), or you didn't **Retry deployment** after adding it (8e). |
+| "Card payments aren't set up yet" at checkout | A Cloudflare variable is missing or misspelled (Phase 8c). |
 | Paid by card, but the order still says "⏳ Waiting for card payment" | The webhook isn't reaching your site. Check the URL ends in `/api/stripe-webhook`, `STRIPE_WEBHOOK_SECRET` matches **this** endpoint's signing secret, and redeploy. Stripe → Webhooks → your endpoint shows the error, and you can **Resend** the event once it's fixed. |
-| "Card payment couldn't be started" | Usually a wrong `STRIPE_SECRET_KEY` or a currency Stripe doesn't support. Check Cloudflare → **scent-drip** → **Deployments** → latest → **Functions** / real-time logs. |
+| "Card payment couldn't be started" | Usually a wrong `STRIPE_SECRET_KEY` or a currency Stripe doesn't support. Check Cloudflare → **scent-drip** → **Observability** / **Logs**. |
 | No order email | 1) Check Spam. 2) `notify_email` must be the email you signed up to Resend with. 3) Run `select status_code, content from net._http_response order by created desc limit 5;` in the SQL Editor to see Resend's reply. 4) Resend → **Logs**. |
 | Photo upload fails | The photo must be under 5 MB. Check that you ran the whole `schema.sql` (it creates the `perfume-images` storage). |
-| My change on GitHub isn't showing | Wait 1–2 minutes and hard-refresh (pull down on your phone, or Ctrl+Shift+R). Check Cloudflare → your project → **Deployments**. |
+| My change on GitHub isn't showing | Wait 1–2 minutes and hard-refresh (pull down on your phone, or Ctrl+Shift+R). Check Cloudflare → your project → **Deployments** (or **Builds**) for errors. |
+| Cloudflare says **"No URLs enabled"** | Project → **Settings** → **Domains & Routes** → enable **workers.dev**. If the build failed, open the failed build's log. |
+| Build fails with a **name** error | The Worker's name in Cloudflare must match `"name"` in `wrangler.jsonc`. Edit that file on GitHub to match. |
 
 ---
 
@@ -408,7 +419,8 @@ js/admin.js             Admin: login, orders, inventory
 supabase/schema.sql     Database tables, security rules, ordering, payments, email alerts
 functions/api/checkout.js         Starts a Stripe payment (runs on Cloudflare, keeps keys secret)
 functions/api/stripe-webhook.js   Receives "payment received" from Stripe
-_headers                Security settings for Cloudflare Pages
+_headers                Security settings (Cloudflare)
+worker.js, wrangler.jsonc, .assetsignore   Cloudflare Worker setup (serves the site + payment code)
 robots.txt              Keeps the admin page out of Google
 .github/workflows/keep-alive.yml   Keeps the free database awake
 ```

@@ -1,0 +1,12 @@
+// Cloudflare Workers settings (used when the site is deployed as a Worker).
+// "name" must match your Worker's name in the Cloudflare dashboard.
+{
+  "name": "scent-drip",
+  "main": "worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}

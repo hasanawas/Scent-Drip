@@ -1,0 +1,10 @@
+# Files that should NOT be published as part of the website (Cloudflare Workers)
+.git
+.github
+.wrangler
+node_modules
+functions
+supabase
+worker.js
+wrangler.jsonc
+README.md
