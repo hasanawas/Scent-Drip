@@ -8,7 +8,9 @@
     typeof cfg.SUPABASE_KEY === "string" &&
     !cfg.SUPABASE_KEY.startsWith("PASTE_");
 
-  const db = isConfigured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY) : null;
+  // Accept the URL with or without extra bits like "/rest/v1/" on the end.
+  const supabaseUrl = isConfigured ? new URL(cfg.SUPABASE_URL).origin : "";
+  const db = isConfigured ? window.supabase.createClient(supabaseUrl, cfg.SUPABASE_KEY) : null;
 
   let moneyFmt;
   try {

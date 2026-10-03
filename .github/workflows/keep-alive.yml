@@ -21,5 +21,6 @@ jobs:
             echo "::warning::Add SUPABASE_URL and SUPABASE_KEY repository secrets (README → Phase 7)."
             exit 0
           fi
-          curl -fsS "$SUPABASE_URL/rest/v1/perfumes?select=id&limit=1" -H "apikey: $SUPABASE_KEY"
+          BASE=$(echo "$SUPABASE_URL" | grep -oE '^https://[^/]+')
+          curl -fsS "$BASE/rest/v1/perfumes?select=id&limit=1" -H "apikey: $SUPABASE_KEY"
           echo "Database is awake ✅"
