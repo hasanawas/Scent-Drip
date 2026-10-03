@@ -11,9 +11,11 @@
   $("year").textContent = new Date().getFullYear();
 
   if (cfg.WHATSAPP_NUMBER) {
-    const wa = $("whatsapp");
-    wa.href = "https://wa.me/" + String(cfg.WHATSAPP_NUMBER).replace(/\D/g, "");
-    wa.classList.remove("hidden");
+    const waUrl = "https://wa.me/" + String(cfg.WHATSAPP_NUMBER).replace(/\D/g, "");
+    for (const id of ["whatsapp", "footer-whatsapp"]) {
+      $(id).href = waUrl;
+      $(id).classList.remove("hidden");
+    }
   }
 
   if (!isConfigured) {
@@ -45,7 +47,7 @@
       .order("created_at", { ascending: false });
 
     if (error) {
-      $("grid").innerHTML = `<p class="empty">Couldn't load the drip. Please refresh the page.</p>`;
+      $("grid").innerHTML = `<p class="empty">Couldn't load our fragrances. Please refresh the page.</p>`;
       console.error(error);
       return;
     }
@@ -73,7 +75,7 @@
   function imageHtml(p) {
     return p.image_url
       ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" />`
-      : `<img class="placeholder" src="images/logo-mark.png" alt="" />`;
+      : `<img class="placeholder" src="images/logo-mark-dark.png" alt="" />`;
   }
 
   function stockBadge(p) {
@@ -95,7 +97,7 @@
     if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
 
     if (!list.length) {
-      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No perfumes match your search." : "New drops coming soon ✦"}</p>`;
+      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No perfumes match your search." : "New fragrances arriving soon."}</p>`;
       return;
     }
 
@@ -110,7 +112,7 @@
           <div class="card-meta">${[p.size_ml ? p.size_ml + " ml" : "", p.category].filter(Boolean).map(esc).join(" · ")}</div>
           <div class="card-foot">
             <span class="price">${money(p.selling_price)}</span>
-            <button class="btn small" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>${p.stock <= 0 ? "Sold out" : "Add +"}</button>
+            <button class="btn small" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>${p.stock <= 0 ? "Sold out" : "Add to bag"}</button>
           </div>
         </div>
       </article>`
@@ -132,7 +134,7 @@
           <p class="price">${money(p.selling_price)}</p>
           ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
           <button class="btn neon block" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>
-            ${p.stock <= 0 ? "Sold out" : "Add to bag +"}
+            ${p.stock <= 0 ? "Sold out" : "Add to bag"}
           </button>
         </div>
       </div>`;
@@ -150,7 +152,7 @@
     }
     cart[id] = current + 1;
     saveCart();
-    toast(`${p.name} added to bag ✦`, "success");
+    toast(`${p.name} added to your bag`, "success");
   }
 
   function cartLines() {
@@ -171,14 +173,14 @@
     $("cart-total").textContent = money(cartTotal());
     $("to-checkout").disabled = lines.length === 0;
     if (!lines.length) {
-      $("cart-view").innerHTML = `<p class="empty">Your bag is empty. Go shop the drip ✦</p>`;
+      $("cart-view").innerHTML = `<p class="empty">Your bag is empty.</p>`;
       return;
     }
     $("cart-view").innerHTML = lines
       .map(
         ({ p, qty }) => `
       <div class="cart-item">
-        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" />` : `<div class="thumb"><img src="images/logo-mark.png" alt="" /></div>`}
+        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" />` : `<div class="thumb"><img src="images/logo-mark-dark.png" alt="" /></div>`}
         <div>
           <div class="name">${esc(p.name)}</div>
           <div class="card-meta">${money(p.selling_price)}</div>
@@ -200,7 +202,7 @@
     $("cart-foot").classList.toggle("hidden", step !== "cart");
     $("checkout-form").classList.toggle("hidden", step !== "checkout");
     $("success-view").classList.toggle("hidden", step !== "success");
-    $("drawer-title").textContent = { cart: "your bag", checkout: "checkout", success: "you're all set" }[step];
+    $("drawer-title").textContent = { cart: "Your bag", checkout: "Checkout", success: "Thank you" }[step];
     if (step === "cart") renderCart();
     if (step === "checkout") $("checkout-total").textContent = money(cartTotal());
   }
@@ -232,7 +234,7 @@
 
   function updatePayButton() {
     const card = selectedPayment() === "card";
-    $("place-order").textContent = card ? "Continue to payment →" : "Place order ✦";
+    $("place-order").textContent = card ? "Continue to payment" : "Place order";
     $("test-note").classList.toggle("hidden", !(card && cfg.STRIPE_TEST_MODE));
   }
 
@@ -241,8 +243,8 @@
     saveCart();
     $("success-view").innerHTML = `
       <div class="success">
-        <div class="big">🎉</div>
-        <h2>Order #${esc(orderId)} is in 💅</h2>
+        <img class="success-mark" src="images/logo-mark-dark.png" alt="" />
+        <h2>Order #${esc(orderId)} confirmed</h2>
         ${html}
         <button class="btn block" data-close>Continue shopping</button>
       </div>`;

@@ -145,6 +145,7 @@ The repo works both as a Cloudflare **Worker** (Cloudflare's default today) and 
 5. On the project page, go to **Settings** → **Domains & Routes**. Next to **workers.dev**, click **Enable** if it isn't already.
    If the overview says **"No URLs enabled"**, this is the fix.
 6. Your address appears on the **Overview** page, e.g. **https://scent-drip.your-name.workers.dev** 🎉
+   Every workers.dev address has two parts: `<worker-name>.<account-subdomain>.workers.dev`. To make it shorter, change the account subdomain in **Workers & Pages** → **Account details** (right side) → **Subdomain** → **Change**. For example, setting it to `scentdrip` gives `scent-drip.scentdrip.workers.dev`. A plain `scent-drip.workers.dev` isn't possible. For the shortest free address, use the Pages option below (`scent-drip.pages.dev`).
    Your admin page is the same address + **/admin**. Bookmark both on your phone.
 
 <details>
