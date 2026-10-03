@@ -6,6 +6,14 @@
 
   let perfumes = [];
   let category = "All";
+  let priceBounds = null; // { min, max, step } worked out from the perfumes on sale
+
+  let wholeMoney;
+  try {
+    wholeMoney = new Intl.NumberFormat(undefined, { style: "currency", currency: cfg.CURRENCY || "USD", maximumFractionDigits: 0 });
+  } catch (e) {
+    wholeMoney = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  }
   let cart = loadCart(); // { [perfumeId]: quantity }
 
   $("year").textContent = new Date().getFullYear();
@@ -61,6 +69,8 @@
     }
     saveCart();
     renderChips();
+    renderBrands();
+    setupPriceRange();
     renderGrid();
   }
 
@@ -84,20 +94,124 @@
     return "";
   }
 
+  function renderBrands() {
+    const select = $("brand");
+    const current = select.value;
+    const brands = [...new Set(perfumes.map((p) => p.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    select.innerHTML =
+      `<option value="">All brands</option>` + brands.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+    select.value = brands.includes(current) ? current : "";
+    select.classList.toggle("hidden", brands.length < 2);
+  }
+
+  // A tidy step for the slider: 1, 2, 5, 10, 20, 50, 100, 200, 500 …
+  function niceStep(range) {
+    const raw = range / 40;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    return [1, 2, 5, 10].map((m) => m * pow).find((v) => v >= raw) || pow * 10;
+  }
+
+  function setupPriceRange() {
+    const prices = perfumes.map((p) => Number(p.selling_price));
+    const lo = $("price-min");
+    const hi = $("price-max");
+    if (prices.length < 2 || Math.min(...prices) === Math.max(...prices)) {
+      priceBounds = null;
+      $("price-filter").classList.add("hidden");
+      return;
+    }
+    const wasFull = !priceBounds || (Number(lo.value) <= priceBounds.min && Number(hi.value) >= priceBounds.max);
+    const step = niceStep(Math.max(...prices) - Math.min(...prices));
+    priceBounds = {
+      min: Math.floor(Math.min(...prices) / step) * step,
+      max: Math.ceil(Math.max(...prices) / step) * step,
+      step,
+    };
+    for (const input of [lo, hi]) {
+      input.min = priceBounds.min;
+      input.max = priceBounds.max;
+      input.step = step;
+    }
+    if (wasFull) {
+      lo.value = priceBounds.min;
+      hi.value = priceBounds.max;
+    }
+    $("price-filter").classList.remove("hidden");
+    updatePriceLabel();
+  }
+
+  function priceSelection() {
+    if (!priceBounds) return [-Infinity, Infinity];
+    return [Number($("price-min").value), Number($("price-max").value)];
+  }
+
+  function updatePriceLabel() {
+    if (!priceBounds) return;
+    const [lo, hi] = priceSelection();
+    $("price-label").textContent = `${wholeMoney.format(lo)} – ${wholeMoney.format(hi)}`;
+    const span = priceBounds.max - priceBounds.min;
+    $("range-fill").style.left = ((lo - priceBounds.min) / span) * 100 + "%";
+    $("range-fill").style.right = ((priceBounds.max - hi) / span) * 100 + "%";
+  }
+
+  function onPriceInput(e) {
+    const lo = $("price-min");
+    const hi = $("price-max");
+    // Keep the two handles from crossing.
+    if (Number(lo.value) > Number(hi.value)) {
+      if (e.target === lo) lo.value = hi.value;
+      else hi.value = lo.value;
+    }
+    updatePriceLabel();
+    renderGrid();
+  }
+
+  function filtersActive() {
+    const [lo, hi] = priceSelection();
+    return (
+      category !== "All" ||
+      $("search").value.trim() !== "" ||
+      $("brand").value !== "" ||
+      (priceBounds && (lo > priceBounds.min || hi < priceBounds.max))
+    );
+  }
+
+  function clearFilters() {
+    category = "All";
+    $("search").value = "";
+    $("brand").value = "";
+    if (priceBounds) {
+      $("price-min").value = priceBounds.min;
+      $("price-max").value = priceBounds.max;
+      updatePriceLabel();
+    }
+    renderChips();
+    renderGrid();
+  }
+
   function renderGrid() {
     const q = $("search").value.trim().toLowerCase();
+    const brand = $("brand").value;
+    const [lo, hi] = priceSelection();
     let list = perfumes.filter(
       (p) =>
         (category === "All" || p.category === category) &&
+        (!brand || p.brand === brand) &&
+        Number(p.selling_price) >= lo &&
+        Number(p.selling_price) <= hi &&
         (!q || [p.name, p.brand, p.description].some((s) => (s || "").toLowerCase().includes(q)))
     );
+    $("result-count").textContent = perfumes.length
+      ? `${list.length} ${list.length === 1 ? "fragrance" : "fragrances"}`
+      : "";
+    $("clear-filters").classList.toggle("hidden", !filtersActive());
     const sort = $("sort").value;
     if (sort === "price-asc") list.sort((a, b) => a.selling_price - b.selling_price);
     if (sort === "price-desc") list.sort((a, b) => b.selling_price - a.selling_price);
     if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
 
     if (!list.length) {
-      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No perfumes match your search." : "New fragrances arriving soon."}</p>`;
+      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No fragrances match these filters." : "New fragrances arriving soon."}</p>`;
       return;
     }
 
@@ -364,6 +478,10 @@
   $("pay-options").addEventListener("change", updatePayButton);
   $("search").addEventListener("input", renderGrid);
   $("sort").addEventListener("change", renderGrid);
+  $("brand").addEventListener("change", renderGrid);
+  $("price-min").addEventListener("input", onPriceInput);
+  $("price-max").addEventListener("input", onPriceInput);
+  $("clear-filters").addEventListener("click", clearFilters);
   document.addEventListener("keydown", (e) => e.key === "Escape" && closeAll());
 
   renderPaymentOptions();

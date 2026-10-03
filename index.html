@@ -52,6 +52,9 @@
       <div class="chips" id="category-chips"></div>
       <div class="controls">
         <input class="input" id="search" type="search" placeholder="Search fragrances" aria-label="Search perfumes" />
+        <select class="input" id="brand" aria-label="Filter by brand">
+          <option value="">All brands</option>
+        </select>
         <select class="input" id="sort" aria-label="Sort">
           <option value="new">Newest</option>
           <option value="price-asc">Price: low to high</option>
@@ -59,6 +62,21 @@
           <option value="name">Name A–Z</option>
         </select>
       </div>
+      <div class="price-filter hidden" id="price-filter">
+        <div class="price-head">
+          <span>Price</span>
+          <output id="price-label" aria-live="polite"></output>
+        </div>
+        <div class="range">
+          <div class="range-track"><div class="range-fill" id="range-fill"></div></div>
+          <input type="range" id="price-min" aria-label="Lowest price" />
+          <input type="range" id="price-max" aria-label="Highest price" />
+        </div>
+      </div>
+      <p class="filter-summary">
+        <span id="result-count"></span>
+        <button type="button" class="link-btn hidden" id="clear-filters">Clear filters</button>
+      </p>
     </div>
 
     <section class="grid" id="grid">
