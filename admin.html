@@ -13,7 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
+<body class="admin">
+  <div class="admin-mist" aria-hidden="true"><span></span><span></span><span></span></div>
   <header class="site-header">
     <div class="wrap">
       <a href="admin.html" class="logo"><img src="images/logo-mark.png" alt="" />Scent Drip <small>admin</small></a>
@@ -28,6 +29,7 @@
     <!-- Login -->
     <form class="login-box form hidden" id="login-form">
       <img src="images/logo-mark-dark.png" alt="" />
+      <p class="eyebrow">Scent Drip · Admin</p>
       <h1>Welcome back</h1>
       <p>Log in to manage your shop.</p>
       <label>Email<input class="input" type="email" name="email" required autocomplete="username" /></label>
@@ -37,6 +39,15 @@
 
     <!-- Dashboard -->
     <section id="dashboard" class="hidden">
+      <div class="admin-hero">
+        <div class="admin-hero-inner">
+          <div>
+            <p class="eyebrow" id="admin-date"></p>
+            <h1 id="admin-greeting">Welcome back</h1>
+          </div>
+          <p class="live" title="New orders appear here instantly"><span class="live-dot"></span>Live</p>
+        </div>
+      </div>
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="orders">Orders <span class="pill hidden" id="new-count">0</span></button>
         <button class="tab" data-tab="inventory">Inventory</button>
@@ -54,7 +65,7 @@
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <button class="btn outline small" id="enable-alerts">🔔 Enable pop-up alerts</button>
+          <button class="btn outline small" id="enable-alerts">Enable pop-up alerts</button>
         </div>
         <div class="orders" id="orders-list"></div>
       </div>

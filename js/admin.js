@@ -22,6 +22,7 @@
   }
 
   function showLogin() {
+    document.body.classList.add("login-mode");
     $("login-form").classList.remove("hidden");
     $("dashboard").classList.add("hidden");
     $("logout").classList.add("hidden");
@@ -35,6 +36,10 @@
       toast("This account is not an admin. See README → Phase 1, step 5.", "error");
       return;
     }
+    document.body.classList.remove("login-mode");
+    const hour = new Date().getHours();
+    $("admin-greeting").textContent = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    $("admin-date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
     $("login-form").classList.add("hidden");
     $("dashboard").classList.remove("hidden");
     $("logout").classList.remove("hidden");
@@ -88,10 +93,10 @@
   const isReal = (o) => !["pending", "failed"].includes(o.payment_status);
 
   function paymentBadge(o) {
-    if (o.payment_method !== "card") return `<span class="pay-badge">💵 Cash on delivery</span>`;
-    if (o.payment_status === "paid") return `<span class="pay-badge paid">💳 Paid by card</span>`;
-    if (o.payment_status === "pending") return `<span class="pay-badge pending">⏳ Waiting for card payment</span>`;
-    return `<span class="pay-badge failed">✕ Card payment not completed</span>`;
+    if (o.payment_method !== "card") return `<span class="pay-badge">Cash on delivery</span>`;
+    if (o.payment_status === "paid") return `<span class="pay-badge paid">Paid by card</span>`;
+    if (o.payment_status === "pending") return `<span class="pay-badge pending">Waiting for card payment</span>`;
+    return `<span class="pay-badge failed">Card payment not completed</span>`;
   }
 
   function renderOrders() {
@@ -139,13 +144,16 @@
             <p><strong>Total: ${money(o.total)}</strong> · <span class="pos">Profit ${money(orderProfit(o))}</span><br />
             ${paymentBadge(o)}</p>
           </div>
-          <div>
-            <strong>${esc(o.customer_name)}</strong><br />
-            📞 <a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a>
-            · <a href="https://wa.me/${esc(o.customer_phone.replace(/\D/g, ""))}" target="_blank" rel="noopener">WhatsApp</a><br />
-            ${o.customer_email ? `✉️ <a href="mailto:${esc(o.customer_email)}">${esc(o.customer_email)}</a><br />` : ""}
-            📍 ${esc(o.address)}
-            ${o.notes ? `<br /><span class="muted">📝 ${esc(o.notes)}</span>` : ""}
+          <div class="customer">
+            <strong class="cust-name">${esc(o.customer_name)}</strong>
+            <dl class="cust-info">
+              <dt>Phone</dt>
+              <dd><a href="tel:${esc(o.customer_phone)}">${esc(o.customer_phone)}</a>
+                · <a href="https://wa.me/${esc(o.customer_phone.replace(/\D/g, ""))}" target="_blank" rel="noopener">WhatsApp</a></dd>
+              ${o.customer_email ? `<dt>Email</dt><dd><a href="mailto:${esc(o.customer_email)}">${esc(o.customer_email)}</a></dd>` : ""}
+              <dt>Address</dt><dd>${esc(o.address)}</dd>
+              ${o.notes ? `<dt>Note</dt><dd class="muted">${esc(o.notes)}</dd>` : ""}
+            </dl>
           </div>
         </div>
       </div>`
@@ -215,7 +223,7 @@
           if (!isNewOrder) return;
           const o = orders.find((x) => x.id === payload.new.id);
           const msg = `New order #${payload.new.id}` + (o ? ` · ${money(o.total)} from ${o.customer_name}` : "");
-          toast("🛍️ " + msg, "success");
+          toast(msg, "success");
           beep();
           if ("Notification" in window && Notification.permission === "granted") {
             new Notification("Scent Drip", { body: msg });
