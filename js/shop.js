@@ -360,7 +360,9 @@
         <img class="success-mark" src="images/logo-mark-dark.png" alt="" />
         <h2>Order #${esc(orderId)} confirmed</h2>
         ${html}
+        <p class="track-hint">You can check your order anytime with order number <strong>#${esc(orderId)}</strong> and your phone number.</p>
         <button class="btn block" data-close>Continue shopping</button>
+        <button class="link-btn track-again" data-track>Track this order</button>
       </div>`;
     showStep("success");
   }
@@ -386,6 +388,7 @@
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.url) {
+          rememberOrder(data.order_id, f.phone);
           window.location.href = data.url; // go to Stripe's payment page
           return;
         }
@@ -417,6 +420,7 @@
       return;
     }
 
+    rememberOrder(orderId, f.phone);
     form.reset();
     updatePayButton();
     showSuccess(
@@ -424,6 +428,99 @@
       `<p>Thank you, ${esc(f.name)}! Your new scent is on its way. We'll contact you on <strong>${esc(f.phone)}</strong> to confirm delivery.</p>`
     );
     loadPerfumes();
+  }
+
+  // ---------- Track your order ----------
+  const LAST_ORDER_KEY = "scentdrip_last_order";
+
+  function rememberOrder(id, phone) {
+    try {
+      localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ id, phone }));
+    } catch (e) {}
+  }
+
+  function lastOrder() {
+    try {
+      return JSON.parse(localStorage.getItem(LAST_ORDER_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  const TRACK_STEPS = [
+    ["new", "Order placed"],
+    ["confirmed", "Confirmed"],
+    ["shipped", "On its way"],
+    ["delivered", "Delivered"],
+  ];
+
+  function trackResultHtml(o) {
+    const items = (o.items || []).map((i) => `${i.quantity} × ${esc(i.name)}`).join("<br />");
+    const placed = new Date(o.created_at).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+    let body;
+    if (o.payment_method === "card" && o.payment_status === "pending") {
+      body = `<p class="track-status">Waiting for card payment</p><p class="muted">If you closed the payment page, this order will be cancelled automatically within an hour and you can order again.</p>`;
+    } else if (o.status === "cancelled") {
+      body = `<p class="track-status cancelled">This order was cancelled</p><p class="muted">If you think this is a mistake, please get in touch with us.</p>`;
+    } else {
+      const current = TRACK_STEPS.findIndex(([k]) => k === o.status);
+      body = `<ol class="track-steps">${TRACK_STEPS.map(
+        ([, label], i) => `<li class="${i < current ? "done" : i === current ? "current" : ""}">${label}</li>`
+      ).join("")}</ol>`;
+    }
+    return `
+      <div class="track-card">
+        <div class="track-meta"><strong>Order #${esc(o.id)}</strong><span>${placed}</span></div>
+        ${body}
+        <div class="track-items">${items}</div>
+        <div class="total-row"><span>Total${o.payment_method === "card" && o.payment_status === "paid" ? " · paid by card" : o.payment_method === "cod" ? " · cash on delivery" : ""}</span><span>${money(o.total)}</span></div>
+      </div>`;
+  }
+
+  function openTracker() {
+    const last = lastOrder();
+    $("product-modal").innerHTML = `
+      <button class="icon-btn close" data-close aria-label="Close">✕</button>
+      <div class="tracker">
+        <p class="eyebrow">Your order</p>
+        <h2>Track your order</h2>
+        <p class="muted">Enter your order number and the phone number you ordered with.</p>
+        <form class="form" id="track-form">
+          <div class="form-row">
+            <label>Order number<input class="input" name="order" inputmode="numeric" required placeholder="e.g. 12" value="${esc(last.id || "")}" /></label>
+            <label>Phone number<input class="input" name="phone" type="tel" required value="${esc(last.phone || "")}" /></label>
+          </div>
+          <button class="btn block" type="submit">Track order</button>
+        </form>
+        <div id="track-result" aria-live="polite"></div>
+      </div>`;
+    closeAll();
+    show("product-modal");
+    $("track-form").addEventListener("submit", trackOrder);
+  }
+
+  async function trackOrder(e) {
+    e.preventDefault();
+    const form = e.target;
+    const id = parseInt(String(form.order.value).replace(/\D/g, ""), 10);
+    const result = $("track-result");
+    if (!id) return (result.innerHTML = `<p class="track-msg">Please enter your order number.</p>`);
+    const btn = form.querySelector("button");
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    const { data, error } = await db.rpc("track_order", { p_order_id: id, p_phone: form.phone.value });
+    btn.disabled = false;
+    btn.textContent = "Track order";
+    if (error) {
+      result.innerHTML = `<p class="track-msg">Something went wrong. Please try again.</p>`;
+      return;
+    }
+    if (!data) {
+      result.innerHTML = `<p class="track-msg">We couldn't find an active order with these details. Please check the order number and phone number. If your order was cancelled, it won't appear here. Contact us if you need help.</p>`;
+      return;
+    }
+    rememberOrder(id, form.phone.value);
+    result.innerHTML = trackResultHtml(data);
   }
 
   // Coming back from Stripe's payment page
@@ -453,7 +550,7 @@
 
   // ---------- Events ----------
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-add],[data-inc],[data-dec],[data-remove],[data-close],[data-cat],.card");
+    const t = e.target.closest("[data-add],[data-inc],[data-dec],[data-remove],[data-close],[data-cat],[data-track],.card");
     if (!t) return;
     if (t.dataset.add) return addToCart(t.dataset.add);
     if (t.dataset.inc) { addToCart(t.dataset.inc); return renderCart(); }
@@ -465,6 +562,7 @@
     }
     if (t.dataset.remove) { delete cart[t.dataset.remove]; saveCart(); return renderCart(); }
     if (t.hasAttribute("data-close")) return closeAll();
+    if (t.hasAttribute("data-track")) { e.preventDefault(); return openTracker(); }
     if (t.dataset.cat) { category = t.dataset.cat; renderChips(); return renderGrid(); }
     if (t.classList.contains("card")) return openProduct(t.dataset.id);
   });

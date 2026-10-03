@@ -126,9 +126,12 @@
       <div class="order st-${o.status} ${isReal(o) ? "" : "unpaid"}">
         <div class="order-head">
           <h3>Order #${o.id} <span class="when">${new Date(o.created_at).toLocaleString()}</span></h3>
-          <select class="input" style="width:auto" data-order="${o.id}" aria-label="Order status">
-            ${STATUSES.map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}
-          </select>
+          <div class="actions">
+            <select class="input" style="width:auto" data-order="${o.id}" aria-label="Order status">
+              ${STATUSES.map((s) => `<option value="${s}" ${s === o.status ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}
+            </select>
+            <button class="btn danger small" data-delete-order="${o.id}">Delete</button>
+          </div>
         </div>
         <div class="order-grid">
           <div>
@@ -151,6 +154,30 @@
   }
 
   $("status-filter").addEventListener("change", renderOrders);
+
+  $("orders-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-delete-order]");
+    if (!btn) return;
+    const id = Number(btn.dataset.deleteOrder);
+    const o = orders.find((x) => x.id === id);
+    const items = o.order_items.map((i) => `${i.quantity} × ${i.perfume_name}`).join(", ");
+    let msg = `Delete order #${id} from ${o.customer_name} permanently?\n\n${items}\n\n`;
+    msg += o.status === "cancelled" ? "It's already cancelled, so stock stays as it is." : "The perfumes will go back into stock.";
+    if (o.payment_method === "card" && o.payment_status === "paid") {
+      msg += "\n\n⚠️ This customer PAID BY CARD. Deleting does not refund them. Refund the payment in Stripe first.";
+    }
+    msg += "\n\nTip: choose \"Cancelled\" instead if you want to keep a record of it.";
+    if (!confirm(msg)) return;
+
+    btn.disabled = true;
+    const { error } = await db.from("orders").delete().eq("id", id);
+    if (error) {
+      btn.disabled = false;
+      return toast("Couldn't delete: " + error.message, "error");
+    }
+    toast(`Order #${id} deleted`, "success");
+    await Promise.all([loadOrders(), loadInventory()]);
+  });
 
   $("orders-list").addEventListener("change", async (e) => {
     const sel = e.target.closest("[data-order]");

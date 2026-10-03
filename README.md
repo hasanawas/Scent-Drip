@@ -360,6 +360,12 @@ Customers who enter an email at checkout will then get an order confirmation aut
 
 ---
 
+## 🔄 After updating the code
+
+Some updates change the database (for example deleting orders and order tracking). When that happens, run the **whole** [`supabase/schema.sql`](supabase/schema.sql) again in Supabase → **SQL Editor** → **New query** → **Run**. It's safe to run again: your perfumes, orders and settings stay as they are.
+
+---
+
 ## 🧴 Day to day
 
 | I want to… | Do this |
@@ -369,7 +375,9 @@ Customers who enter an email at checkout will then get an order confirmation aut
 | Hide a perfume for now | Untick **Visible** |
 | Remove a perfume for good | Inventory → **Delete** (past orders keep their history) |
 | Handle a new order | 📧 email arrives → call or WhatsApp the customer → set **Confirmed** → **Shipped** → **Delivered** |
-| Cancel an order | Set it to **Cancelled** (stock goes back automatically) |
+| Cancel an order | Set it to **Cancelled** (stock goes back automatically, and you keep a record) |
+| Delete an order (e.g. the customer refused it) | Orders → **Delete** on that order. The bottles go back into stock and the order disappears for good. Card-paid orders must be refunded in Stripe first. |
+| Customer asks "where's my order?" | They tap **Track order** on the shop and enter their order number + phone number to see *Placed → Confirmed → On its way → Delivered* |
 | See profit | **Orders** tab (sales and profit) · **Inventory** tab (profit per bottle, stock value) |
 | See visitors | Cloudflare → your project → **Metrics** / Web Analytics |
 
