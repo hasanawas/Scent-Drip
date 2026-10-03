@@ -101,7 +101,7 @@
     select.innerHTML =
       `<option value="">All brands</option>` + brands.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
     select.value = brands.includes(current) ? current : "";
-    select.classList.toggle("hidden", brands.length < 2);
+    select.classList.toggle("hidden", perfumes.length === 0);
   }
 
   // A tidy step for the slider: 1, 2, 5, 10, 20, 50, 100, 200, 500 …
@@ -115,18 +115,23 @@
     const prices = perfumes.map((p) => Number(p.selling_price));
     const lo = $("price-min");
     const hi = $("price-max");
-    if (prices.length < 2 || Math.min(...prices) === Math.max(...prices)) {
+    if (!prices.length) {
       priceBounds = null;
       $("price-filter").classList.add("hidden");
       return;
     }
     const wasFull = !priceBounds || (Number(lo.value) <= priceBounds.min && Number(hi.value) >= priceBounds.max);
-    const step = niceStep(Math.max(...prices) - Math.min(...prices));
+    // With one price (or all the same), the slider runs from 0 up to that price.
+    let low = Math.min(...prices);
+    const high = Math.max(...prices);
+    if (low === high) low = 0;
+    const step = niceStep(Math.max(high - low, 1));
     priceBounds = {
-      min: Math.floor(Math.min(...prices) / step) * step,
-      max: Math.ceil(Math.max(...prices) / step) * step,
+      min: Math.floor(low / step) * step,
+      max: Math.ceil(high / step) * step,
       step,
     };
+    if (priceBounds.max <= priceBounds.min) priceBounds.max = priceBounds.min + step;
     for (const input of [lo, hi]) {
       input.min = priceBounds.min;
       input.max = priceBounds.max;
