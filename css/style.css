@@ -340,9 +340,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--text); width: 
 .pill { display: inline-block; background: var(--text); color: #fff; font-size: 11px; border-radius: 999px; padding: 0 7px; margin-left: 4px; letter-spacing: 0; vertical-align: 1px; }
 
 .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); margin-bottom: 24px; }
-.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; min-width: 0; container-type: inline-size; }
 .stat .label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
-.stat .value { font-family: var(--serif); font-size: 30px; font-weight: 600; margin-top: 2px; }
+/* Figures shrink with the card so long amounts always stay inside the box */
+.stat .value { font-family: var(--serif); font-size: 22px; font-size: clamp(14px, 10.5cqi, 32px); font-weight: 600; line-height: 1.15; margin-top: 4px; overflow-wrap: anywhere; }
 .stat .value.pos { color: var(--success); }
 
 .toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
@@ -422,7 +423,7 @@ body.admin.login-mode .site-header { background: transparent; }
 .admin .stat:first-child { background: var(--ink); border-color: var(--ink); color: #fff; }
 .admin .stat:first-child .label { color: var(--on-ink-muted); }
 .admin .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.admin .stat .value { font-size: clamp(22px, 2.6vw, 32px); line-height: 1.15; margin-top: 6px; white-space: nowrap; }
+.admin .stat .value { margin-top: 6px; }
 .admin .stat .value.pos, .admin .pos { color: var(--text); }
 .admin .stats .stat:nth-child(2) { animation-delay: .05s; } .admin .stats .stat:nth-child(3) { animation-delay: .1s; }
 .admin .stats .stat:nth-child(4) { animation-delay: .15s; } .admin .stats .stat:nth-child(5) { animation-delay: .2s; }
@@ -467,7 +468,6 @@ body.admin.login-mode .site-header { background: transparent; }
   .admin .login-box { margin-top: 5vh; padding: 32px 22px; }
   .admin .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin .stat { padding: 14px; }
-  .admin .stat .value { font-size: 19px; }
   .admin .site-header .logo { white-space: nowrap; font-size: 20px; }
   .admin .site-header .logo small { display: none; }
   .admin .site-header .btn.small { padding: 7px 11px; letter-spacing: 1px; white-space: nowrap; }

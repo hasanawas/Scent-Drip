@@ -89,6 +89,10 @@
   const orderProfit = (o) =>
     o.order_items.reduce((s, i) => s + (i.unit_price - (i.unit_cost ?? 0)) * i.quantity, 0);
 
+  // Money is formatted with a non-breaking space ("LKR 50,000.00"); use a normal space
+  // in the stat cards so a long amount can drop below "LKR" instead of spilling out.
+  const statText = (v) => String(v).replace(/[\u00A0\u202F]/g, " ");
+
   // Card orders count once Stripe confirms payment; cash orders count right away.
   const isReal = (o) => !["pending", "failed"].includes(o.payment_status);
 
@@ -115,7 +119,7 @@
       ["Delivered sales", money(delivered.reduce((s, o) => s + Number(o.total), 0))],
       ["Delivered profit", money(delivered.reduce((s, o) => s + orderProfit(o), 0)), "pos"],
     ]
-      .map(([l, v, c]) => `<div class="stat"><div class="label">${l}</div><div class="value ${c || ""}">${v}</div></div>`)
+      .map(([l, v, c]) => `<div class="stat"><div class="label">${l}</div><div class="value ${c || ""}">${statText(v)}</div></div>`)
       .join("");
 
     const filter = $("status-filter").value;
@@ -283,7 +287,7 @@
       ["Potential profit", money(sellValue - costValue), "pos"],
       ["Low / out of stock", low],
     ]
-      .map(([l, v, c]) => `<div class="stat"><div class="label">${l}</div><div class="value ${c || ""}">${v}</div></div>`)
+      .map(([l, v, c]) => `<div class="stat"><div class="label">${l}</div><div class="value ${c || ""}">${statText(v)}</div></div>`)
       .join("");
 
     const q = $("inv-search").value.trim().toLowerCase();
