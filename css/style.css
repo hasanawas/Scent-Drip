@@ -201,6 +201,37 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--text); width: 
 .success h2 { font-size: 32px; margin: 0 0 8px; }
 .success p { color: var(--muted); margin: 0 0 24px; }
 
+/* ---------- Track order ---------- */
+.text-link { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; padding: 8px 10px; color: var(--text); }
+.text-link:hover { color: var(--charm); }
+.tracker { max-width: 520px; margin: 0 auto; text-align: center; }
+.tracker h2 { margin-bottom: 6px; }
+.tracker .form { text-align: left; margin-top: 18px; }
+.muted { color: var(--muted); }
+.track-msg { margin: 18px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--muted); font-size: 14px; }
+.track-card { margin-top: 20px; text-align: left; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 18px; display: grid; gap: 14px; }
+.track-meta { display: flex; justify-content: space-between; align-items: baseline; }
+.track-meta strong { font-family: var(--serif); font-size: 22px; font-weight: 600; font-variant-numeric: lining-nums; }
+.track-meta span { color: var(--muted); font-size: 13px; }
+.track-status { margin: 0; font-family: var(--serif); font-size: 22px; }
+.track-status.cancelled { color: var(--danger); }
+.track-card .muted { margin: -8px 0 0; font-size: 14px; }
+.track-items { font-size: 14px; color: #4a4642; }
+.track-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; counter-reset: step; }
+.track-steps li { position: relative; padding-top: 22px; font-size: 12px; text-align: center; color: var(--muted); }
+.track-steps li::before { content: ""; position: absolute; top: 4px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); z-index: 1; }
+.track-steps li::after { content: ""; position: absolute; top: 9px; left: -50%; right: 50%; height: 2px; background: var(--line); }
+.track-steps li:first-child::after { display: none; }
+.track-steps li.done, .track-steps li.current { color: var(--text); }
+.track-steps li.done::before, .track-steps li.current::before { background: var(--text); border-color: var(--text); }
+.track-steps li.done::after, .track-steps li.current::after { background: var(--text); }
+.track-steps li.current { font-weight: 500; }
+.track-steps li.current::before { box-shadow: 0 0 0 4px rgba(176, 141, 87, .25); }
+.track-hint { font-size: 14px; }
+.track-card .total-row span:first-child { font-size: 13px; color: var(--muted); }
+.track-again { display: block; margin: 14px auto 0; }
+.order-head .actions { align-items: center; }
+
 /* ---------- Toast ---------- */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 16px); z-index: 100; background: var(--text); color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: all .25s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -281,6 +312,8 @@ tr.inactive td { opacity: .45; }
   .filters .controls #search { flex: 1 1 100%; }
   .price-filter { max-width: none; }
   .chips { width: 100%; justify-content: center; }
+  .text-link { padding: 8px 4px; font-size: 11px; letter-spacing: 1px; }
+  .logo { font-size: 21px; }
 }
 
 /* Even-height numbers for prices and totals */

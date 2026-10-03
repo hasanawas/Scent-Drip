@@ -376,17 +376,19 @@ grant execute on function public.place_order(text, text, text, text, text, jsonb
 grant execute on function public.is_admin() to anon, authenticated;
 
 -- ---------------------------------------------------------------------
---  9. CANCELLING an order puts the perfumes back into stock
+--  9. CANCELLING or DELETING an order puts the perfumes back into stock
 -- ---------------------------------------------------------------------
 create or replace function public.restock_on_cancel() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if new.status = 'cancelled' and old.status <> 'cancelled' then
-    update public.perfumes p set stock = p.stock + i.quantity, updated_at = now()
-      from public.order_items i where i.order_id = new.id and i.perfume_id = p.id;
+    update public.perfumes p set stock = p.stock + i.qty, updated_at = now()
+      from (select perfume_id, sum(quantity) qty from public.order_items where order_id = new.id group by perfume_id) i
+     where i.perfume_id = p.id;
   elsif old.status = 'cancelled' and new.status <> 'cancelled' then
-    update public.perfumes p set stock = p.stock - i.quantity, updated_at = now()
-      from public.order_items i where i.order_id = new.id and i.perfume_id = p.id;
+    update public.perfumes p set stock = p.stock - i.qty, updated_at = now()
+      from (select perfume_id, sum(quantity) qty from public.order_items where order_id = new.id group by perfume_id) i
+     where i.perfume_id = p.id;
   end if;
   return new;
 end $$;
@@ -394,6 +396,55 @@ end $$;
 drop trigger if exists orders_restock on public.orders;
 create trigger orders_restock after update of status on public.orders
   for each row execute function public.restock_on_cancel();
+
+-- Deleting an order that still holds stock (not already cancelled) returns its bottles.
+create or replace function public.restock_on_delete() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.status <> 'cancelled' then
+    update public.perfumes p set stock = p.stock + i.qty, updated_at = now()
+      from (select perfume_id, sum(quantity) qty from public.order_items where order_id = old.id group by perfume_id) i
+     where i.perfume_id = p.id;
+  end if;
+  return old;
+end $$;
+
+drop trigger if exists orders_restock_on_delete on public.orders;
+create trigger orders_restock_on_delete before delete on public.orders
+  for each row execute function public.restock_on_delete();
+
+-- ---------------------------------------------------------------------
+--  9b. TRACK ORDER — customers look up their own order with the order
+--      number + the phone number they used. Shows no address or email.
+-- ---------------------------------------------------------------------
+create or replace function public.track_order(p_order_id bigint, p_phone text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare
+  o       public.orders%rowtype;
+  v_given text := right(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'), 9);
+begin
+  if length(v_given) < 7 then
+    return null;
+  end if;
+  select * into o from public.orders
+   where id = p_order_id
+     and right(regexp_replace(customer_phone, '\D', '', 'g'), 9) = v_given;
+  if not found then
+    return null;
+  end if;
+  return jsonb_build_object(
+    'id', o.id,
+    'status', o.status,
+    'payment_method', o.payment_method,
+    'payment_status', o.payment_status,
+    'total', o.total,
+    'created_at', o.created_at,
+    'items', (select jsonb_agg(jsonb_build_object('name', perfume_name, 'quantity', quantity) order by id)
+                from public.order_items where order_id = o.id));
+end $$;
+
+revoke execute on function public.track_order(bigint, text) from public;
+grant execute on function public.track_order(bigint, text) to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- 10. LIVE UPDATES — lets the admin page pop up new orders instantly
