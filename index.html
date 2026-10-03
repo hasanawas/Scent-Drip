@@ -5,32 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scent Drip</title>
   <meta name="description" content="Scent Drip — authentic perfumes, delivered to your door." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>" />
+  <link rel="icon" type="image/png" href="images/favicon.png" />
+  <link rel="apple-touch-icon" href="images/logo-mark.png" />
+  <meta name="theme-color" content="#050505" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
-      <a href="./" class="logo">Scent <span>Drip</span></a>
+      <a href="./" class="logo"><img src="images/logo-mark.png" alt="" />Scent Drip</a>
       <button class="btn outline cart-btn" id="open-cart" aria-label="Open cart">
-        🛍️ Cart <span class="cart-count hidden" id="cart-count">0</span>
+        Bag <span class="cart-count hidden" id="cart-count">0</span>
       </button>
     </div>
   </header>
 
-  <main class="wrap" id="main">
+  <div class="wrap">
     <section class="hero">
-      <h1>Find your signature scent</h1>
-      <p>Authentic fragrances, hand-picked and delivered to your door.</p>
+      <img class="hero-logo" src="images/logo-full.png" alt="Scent Drip" />
+      <h1>smell like <span class="glow">main character</span> energy</h1>
+      <p>100% authentic fragrances. Hand-picked, no cap. Delivered to your door ✦</p>
     </section>
+  </div>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>✦ 100% authentic ✦ cash on delivery ✦ new drops weekly ✦ smell expensive ✦ limited stock ✦ 100% authentic ✦ cash on delivery ✦ new drops weekly ✦ smell expensive ✦ limited stock&nbsp;</span>
+      <span>✦ 100% authentic ✦ cash on delivery ✦ new drops weekly ✦ smell expensive ✦ limited stock ✦ 100% authentic ✦ cash on delivery ✦ new drops weekly ✦ smell expensive ✦ limited stock&nbsp;</span>
+    </div>
+  </div>
+
+  <main class="wrap" id="main">
 
     <div class="filters">
       <div class="chips" id="category-chips"></div>
       <div class="controls">
-        <input class="input" id="search" type="search" placeholder="Search perfumes…" aria-label="Search perfumes" />
+        <input class="input" id="search" type="search" placeholder="Search the drip…" aria-label="Search perfumes" />
         <select class="input" id="sort" aria-label="Sort">
           <option value="new">Newest</option>
           <option value="price-asc">Price: low to high</option>
@@ -41,12 +54,12 @@
     </div>
 
     <section class="grid" id="grid">
-      <p class="empty">Loading perfumes…</p>
+      <p class="empty">Loading the drip…</p>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="wrap">© <span id="year"></span> Scent Drip · All perfumes are 100% authentic</div>
+    <div class="wrap"><img src="images/logo-mark.png" alt="" />© <span id="year"></span> Scent Drip · 100% authentic, always</div>
   </footer>
 
   <!-- Product detail -->
@@ -56,7 +69,7 @@
   <!-- Cart / checkout drawer -->
   <aside class="drawer hidden" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
     <div class="drawer-head">
-      <h2 id="drawer-title">Your cart</h2>
+      <h2 id="drawer-title">your bag</h2>
       <button class="icon-btn" id="close-drawer" aria-label="Close">✕</button>
     </div>
 
@@ -64,12 +77,12 @@
     <div id="cart-view" class="drawer-body"></div>
     <div id="cart-foot" class="drawer-foot">
       <div class="total-row"><span>Total</span><span id="cart-total">—</span></div>
-      <button class="btn gold block" id="to-checkout">Checkout</button>
+      <button class="btn neon block" id="to-checkout">Checkout →</button>
     </div>
 
     <!-- Step 2: checkout -->
     <form id="checkout-form" class="drawer-body form hidden" novalidate>
-      <button type="button" class="link-btn" id="back-to-cart">← Back to cart</button>
+      <button type="button" class="link-btn" id="back-to-cart">← Back to bag</button>
       <label>Full name *<input class="input" name="name" required maxlength="100" autocomplete="name" /></label>
       <label>Phone number *<input class="input" name="phone" required maxlength="30" type="tel" autocomplete="tel" /></label>
       <label>Email <span class="hint">(optional)</span><input class="input" name="email" type="email" maxlength="200" autocomplete="email" /></label>
@@ -80,7 +93,7 @@
         Pay when your perfume arrives. We'll call you to confirm your order.
       </div>
       <div class="total-row"><span>Total to pay</span><span id="checkout-total">—</span></div>
-      <button class="btn gold block" type="submit" id="place-order">Place order</button>
+      <button class="btn neon block" type="submit" id="place-order">Place order ✦</button>
     </form>
 
     <!-- Step 3: done -->

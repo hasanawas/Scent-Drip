@@ -175,7 +175,8 @@ The free Supabase plan doesn't include automatic backups. About once a month go 
 ```
 index.html              Customer shop
 admin.html              Your admin dashboard
-css/style.css           Look and feel (colours, fonts)
+css/style.css           Look and feel (black, white & neon theme)
+images/                 Logo, favicon
 js/config.js            ← your settings (the only file you need to edit)
 js/common.js            Shared helpers
 js/shop.js              Shop logic: list, cart, checkout
@@ -184,4 +185,4 @@ supabase/schema.sql     Database tables, security rules, order and alert logic
 .github/workflows/keep-alive.yml   Keeps the free database awake
 ```
 
-**Customising:** to change the colours, edit the values at the top of `css/style.css` (`--gold`, `--bg`, …). To change the headline text, edit the `<h1>` in `index.html`.
+**Customising:** the neon colour is `--neon` at the top of `css/style.css`. Try `#39ff14` (green), `#00f0ff` (cyan) or `#ff2bd6` (pink). To change the headline or the scrolling ticker text, edit `index.html`. Your logo files are in `images/`.

@@ -45,7 +45,7 @@
       .order("created_at", { ascending: false });
 
     if (error) {
-      $("grid").innerHTML = `<p class="empty">Couldn't load perfumes. Please refresh the page.</p>`;
+      $("grid").innerHTML = `<p class="empty">Couldn't load the drip. Please refresh the page.</p>`;
       console.error(error);
       return;
     }
@@ -73,7 +73,7 @@
   function imageHtml(p) {
     return p.image_url
       ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy" />`
-      : `<span class="placeholder">🧴</span>`;
+      : `<img class="placeholder" src="images/logo-mark.png" alt="" />`;
   }
 
   function stockBadge(p) {
@@ -95,7 +95,7 @@
     if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
 
     if (!list.length) {
-      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No perfumes match your search." : "New perfumes coming soon ✨"}</p>`;
+      $("grid").innerHTML = `<p class="empty">${perfumes.length ? "No perfumes match your search." : "New drops coming soon ✦"}</p>`;
       return;
     }
 
@@ -110,7 +110,7 @@
           <div class="card-meta">${[p.size_ml ? p.size_ml + " ml" : "", p.category].filter(Boolean).map(esc).join(" · ")}</div>
           <div class="card-foot">
             <span class="price">${money(p.selling_price)}</span>
-            <button class="btn small" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>${p.stock <= 0 ? "Sold out" : "Add"}</button>
+            <button class="btn small" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>${p.stock <= 0 ? "Sold out" : "Add +"}</button>
           </div>
         </div>
       </article>`
@@ -129,10 +129,10 @@
           ${p.brand ? `<div class="card-brand">${esc(p.brand)}</div>` : ""}
           <h2>${esc(p.name)}</h2>
           <p class="card-meta">${[p.size_ml ? p.size_ml + " ml" : "", p.category].filter(Boolean).map(esc).join(" · ")}</p>
-          <p class="price" style="font-size:22px">${money(p.selling_price)}</p>
+          <p class="price">${money(p.selling_price)}</p>
           ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
-          <button class="btn gold block" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>
-            ${p.stock <= 0 ? "Sold out" : "Add to cart"}
+          <button class="btn neon block" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>
+            ${p.stock <= 0 ? "Sold out" : "Add to bag +"}
           </button>
         </div>
       </div>`;
@@ -150,7 +150,7 @@
     }
     cart[id] = current + 1;
     saveCart();
-    toast(`${p.name} added to cart`, "success");
+    toast(`${p.name} added to bag ✦`, "success");
   }
 
   function cartLines() {
@@ -171,14 +171,14 @@
     $("cart-total").textContent = money(cartTotal());
     $("to-checkout").disabled = lines.length === 0;
     if (!lines.length) {
-      $("cart-view").innerHTML = `<p class="empty">Your cart is empty.</p>`;
+      $("cart-view").innerHTML = `<p class="empty">Your bag is empty. Go shop the drip ✦</p>`;
       return;
     }
     $("cart-view").innerHTML = lines
       .map(
         ({ p, qty }) => `
       <div class="cart-item">
-        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" />` : `<div class="thumb">🧴</div>`}
+        ${p.image_url ? `<img src="${esc(p.image_url)}" alt="" />` : `<div class="thumb"><img src="images/logo-mark.png" alt="" /></div>`}
         <div>
           <div class="name">${esc(p.name)}</div>
           <div class="card-meta">${money(p.selling_price)}</div>
@@ -200,7 +200,7 @@
     $("cart-foot").classList.toggle("hidden", step !== "cart");
     $("checkout-form").classList.toggle("hidden", step !== "checkout");
     $("success-view").classList.toggle("hidden", step !== "success");
-    $("drawer-title").textContent = { cart: "Your cart", checkout: "Checkout", success: "Thank you!" }[step];
+    $("drawer-title").textContent = { cart: "your bag", checkout: "checkout", success: "you're all set" }[step];
     if (step === "cart") renderCart();
     if (step === "checkout") $("checkout-total").textContent = money(cartTotal());
   }
@@ -242,8 +242,8 @@
     $("success-view").innerHTML = `
       <div class="success">
         <div class="big">🎉</div>
-        <h2>Order #${esc(orderId)} placed!</h2>
-        <p>Thank you, ${esc(f.name)}. We'll contact you on <strong>${esc(f.phone)}</strong> to confirm delivery.</p>
+        <h2>Order #${esc(orderId)} is in 💅</h2>
+        <p>Thank you, ${esc(f.name)}! Your new scent is on its way. We'll contact you on <strong>${esc(f.phone)}</strong> to confirm delivery.</p>
         <button class="btn block" data-close>Continue shopping</button>
       </div>`;
     showStep("success");
