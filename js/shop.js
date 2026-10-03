@@ -206,6 +206,49 @@
   }
 
   // ---------- Checkout ----------
+  const PAYMENT_OPTIONS = {
+    cod: { icon: "💵", title: "Cash on delivery", sub: "Pay when your perfume arrives" },
+    card: { icon: "💳", title: "Pay by card", sub: "Secure checkout by Stripe" },
+  };
+  const paymentMethods = (cfg.PAYMENT_METHODS || ["cod"]).filter((m) => PAYMENT_OPTIONS[m]);
+
+  function renderPaymentOptions() {
+    $("pay-options").insertAdjacentHTML(
+      "beforeend",
+      paymentMethods
+        .map(
+          (m, i) => `
+        <label class="pay-option">
+          <input type="radio" name="payment" value="${m}" ${i === 0 ? "checked" : ""} />
+          <span><strong>${PAYMENT_OPTIONS[m].icon} ${PAYMENT_OPTIONS[m].title}</strong><small>${PAYMENT_OPTIONS[m].sub}</small></span>
+        </label>`
+        )
+        .join("")
+    );
+    updatePayButton();
+  }
+
+  const selectedPayment = () => ($("checkout-form").elements.payment?.value || paymentMethods[0]);
+
+  function updatePayButton() {
+    const card = selectedPayment() === "card";
+    $("place-order").textContent = card ? "Continue to payment →" : "Place order ✦";
+    $("test-note").classList.toggle("hidden", !(card && cfg.STRIPE_TEST_MODE));
+  }
+
+  function showSuccess(orderId, html) {
+    cart = {};
+    saveCart();
+    $("success-view").innerHTML = `
+      <div class="success">
+        <div class="big">🎉</div>
+        <h2>Order #${esc(orderId)} is in 💅</h2>
+        ${html}
+        <button class="btn block" data-close>Continue shopping</button>
+      </div>`;
+    showStep("success");
+  }
+
   async function placeOrder(e) {
     e.preventDefault();
     const form = e.target;
@@ -216,8 +259,31 @@
 
     const btn = $("place-order");
     btn.disabled = true;
-    btn.textContent = "Placing order…";
 
+    if (selectedPayment() === "card") {
+      btn.textContent = "Opening secure payment…";
+      try {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...f, items }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.url) {
+          window.location.href = data.url; // go to Stripe's payment page
+          return;
+        }
+        toast(data.error || "Card payments aren't available right now. Please choose cash on delivery.", "error");
+      } catch (err) {
+        toast("Couldn't reach the payment service. Please try again.", "error");
+      }
+      btn.disabled = false;
+      updatePayButton();
+      loadPerfumes();
+      return;
+    }
+
+    btn.textContent = "Placing order…";
     const { data: orderId, error } = await db.rpc("place_order", {
       p_name: f.name,
       p_phone: f.phone,
@@ -226,9 +292,8 @@
       p_notes: f.notes,
       p_items: items,
     });
-
     btn.disabled = false;
-    btn.textContent = "Place order";
+    updatePayButton();
 
     if (error) {
       toast(error.message || "Something went wrong. Please try again.", "error");
@@ -236,18 +301,27 @@
       return;
     }
 
-    cart = {};
-    saveCart();
     form.reset();
-    $("success-view").innerHTML = `
-      <div class="success">
-        <div class="big">🎉</div>
-        <h2>Order #${esc(orderId)} is in 💅</h2>
-        <p>Thank you, ${esc(f.name)}! Your new scent is on its way. We'll contact you on <strong>${esc(f.phone)}</strong> to confirm delivery.</p>
-        <button class="btn block" data-close>Continue shopping</button>
-      </div>`;
-    showStep("success");
+    updatePayButton();
+    showSuccess(
+      orderId,
+      `<p>Thank you, ${esc(f.name)}! Your new scent is on its way. We'll contact you on <strong>${esc(f.phone)}</strong> to confirm delivery.</p>`
+    );
     loadPerfumes();
+  }
+
+  // Coming back from Stripe's payment page
+  function handlePaymentReturn() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("paid") === "1" && /^\d+$/.test(params.get("order") || "")) {
+      showSuccess(params.get("order"), `<p>Payment received ✅ Thank you! We'll contact you to arrange delivery.</p>`);
+      show("drawer");
+    } else if (params.get("cancelled") === "1") {
+      toast("Payment cancelled. Your bag is still here.", "error");
+    } else {
+      return;
+    }
+    history.replaceState(null, "", location.pathname);
   }
 
   // ---------- Open / close panels ----------
@@ -285,10 +359,13 @@
   $("to-checkout").onclick = () => showStep("checkout");
   $("back-to-cart").onclick = () => showStep("cart");
   $("checkout-form").addEventListener("submit", placeOrder);
+  $("pay-options").addEventListener("change", updatePayButton);
   $("search").addEventListener("input", renderGrid);
   $("sort").addEventListener("change", renderGrid);
   document.addEventListener("keydown", (e) => e.key === "Escape" && closeAll());
 
+  renderPaymentOptions();
   renderCartCount();
+  handlePaymentReturn();
   loadPerfumes();
 })();

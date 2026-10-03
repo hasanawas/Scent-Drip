@@ -88,10 +88,10 @@
       <label>Email <span class="hint">(optional)</span><input class="input" name="email" type="email" maxlength="200" autocomplete="email" /></label>
       <label>Delivery address *<textarea class="input" name="address" rows="3" required maxlength="500" autocomplete="street-address"></textarea></label>
       <label>Note for us <span class="hint">(optional)</span><textarea class="input" name="notes" rows="2" maxlength="500"></textarea></label>
-      <div class="pay-box">
-        <strong>💵 Payment: Cash on Delivery</strong><br />
-        Pay when your perfume arrives. We'll call you to confirm your order.
-      </div>
+      <fieldset class="pay-options" id="pay-options">
+        <legend>Payment</legend>
+      </fieldset>
+      <p class="test-note hidden" id="test-note">🧪 <strong>Test mode:</strong> pay with card <code>4242 4242 4242 4242</code>, any future date, any CVC. No real money moves.</p>
       <div class="total-row"><span>Total to pay</span><span id="checkout-total">—</span></div>
       <button class="btn neon block" type="submit" id="place-order">Place order ✦</button>
     </form>

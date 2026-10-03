@@ -7,28 +7,34 @@ An online perfume shop that costs **nothing** to run.
   - add, edit, hide or delete perfumes (with photos)
   - see your **inventory**: stock, the price you **bought** each perfume for, the **selling** price, profit per bottle and total stock value
   - see **orders** as they arrive and move them through *New → Confirmed → Shipped → Delivered* (or *Cancelled*, which puts the bottles back in stock)
+- **Payments**: **Cash on Delivery** and **card payments with Stripe** (test mode now, real payments later).
 - **Order alerts**: an **email** for every new order (Resend), plus a pop-up and sound on the admin page. Telegram is optional.
 
 ---
 
-## 🧰 Your tools
+## 🧰 The stack: best zero-cost setup
 
-| Job | Tool | Cost |
-|---|---|---|
-| Hosting (the website) | **Cloudflare Pages** | Free |
-| Database, admin login | **Supabase** (free plan) | Free |
-| Product photos | **Supabase Storage** | Free (1 GB) |
-| Order emails | **Resend** (free tier: 3,000 emails/month, 100/day) | Free |
-| Payments | **Cash on Delivery** now; **Stripe** or a local gateway later | Free (gateways take ~2–4% per sale) |
-| Web address | `scent-drip.pages.dev` | Free |
-| Visitor stats | **Cloudflare Web Analytics** | Free |
-| Design (photos, posts) | **Canva** / **Figma** free plans | Free |
-| Code storage | **GitHub** (this repo) | Free |
+| Job | Tool | Why this one | Free limit |
+|---|---|---|---|
+| Website hosting | **Cloudflare Pages** | Fastest, unlimited visitors, never sleeps | Unlimited bandwidth |
+| Server code for Stripe | **Cloudflare Pages Functions** (the `functions/` folder) | Deploys with the site, no extra service | 100,000 requests/day |
+| Database + admin login | **Supabase** | Real database with built-in security rules | 500 MB, 50k users/month |
+| Product photos | **Supabase Storage** | Same place as your data | 1 GB |
+| Order emails | **Resend** | Simplest email API, good inbox delivery | 3,000/month, 100/day |
+| Card payments | **Stripe** (test mode) | Free to test fully; swap for a local gateway later | Test mode is free |
+| Cash payments | **Cash on Delivery** (built in) | No fees | — |
+| Web address | `scent-drip.pages.dev` | Free; add a `.com` later if you want | — |
+| Visitor stats | **Cloudflare Web Analytics** | One click, no cookie banner needed | Free |
+| Keeping the database awake | **GitHub Actions** (already set up) | Supabase pauses idle free projects | Free |
+| Design | **Canva** (photos, posts), **Figma** (optional mockups) | — | Free plans |
+
+**Total cost: $0/month.** The only costs come later and are optional: a domain (about $10/year) and Stripe's fee on **real** payments (about 3% per sale).
 
 ```
- Customer ──► scent-drip.pages.dev ──► Supabase ──► Resend ──► 📧 your inbox
-              (Cloudflare Pages)       database,
-              index.html / admin.html  login, photos
+ Customer ──► scent-drip.pages.dev (Cloudflare Pages) ──► Supabase (database, login, photos)
+                     │                                          │
+                     └─► /api/checkout ──► Stripe 💳            └─► Resend ──► 📧 your inbox
+                         /api/stripe-webhook ◄── "payment received"
 ```
 
 **Is it safe that the Supabase key is in the code?** Yes. The *publishable / anon* key is designed to be public. Security comes from rules inside the database (`supabase/schema.sql`):
@@ -54,9 +60,10 @@ About **1–2 hours** in total. Do the phases in order and tick them off as you 
 | 5 | Order emails (Resend) | 10 min |
 | 6 | Visitor stats (Cloudflare Web Analytics) | 2 min |
 | 7 | Keep the free database awake | 5 min |
-| 8 | Product photos and adding perfumes (Canva) | as long as you like |
-| 9 | Test everything, then launch 🎉 | 15 min |
-| Later | Card payments, your own domain, customer emails | when ready |
+| 8 | Card payments (Stripe test mode) 💳 | 20 min |
+| 9 | Product photos and adding perfumes (Canva) | as long as you like |
+| 10 | Test everything, then launch 🎉 | 20 min |
+| Later | Real card payments, your own domain, customer emails | when ready |
 
 ---
 
@@ -68,6 +75,7 @@ Use the **same email** everywhere if you can. It makes things simpler.
 - [ ] **Supabase**: https://supabase.com → *Start your project* → sign in **with GitHub**.
 - [ ] **Cloudflare**: https://dash.cloudflare.com/sign-up → confirm your email.
 - [ ] **Resend**: https://resend.com/signup. ⚠️ The email you sign up with is where your order emails will go (see Phase 5).
+- [ ] **Stripe**: https://dashboard.stripe.com/register. You **don't** need to verify a business to use test mode.
 - [ ] **Canva**: https://canva.com (free). Figma (https://figma.com) is optional.
 
 > 🔐 Turn on **2-factor authentication** (2FA) for GitHub, Supabase and Cloudflare. It's in each one's account or security settings.
@@ -109,8 +117,11 @@ Use the **same email** everywhere if you can. It makes things simpler.
    SUPABASE_URL: "https://abcdxyz.supabase.co",
    SUPABASE_KEY: "sb_publishable_xxxxxxxxxxxxxxxx",
    CURRENCY: "LKR",              // your currency: LKR, INR, PKR, AED, USD, GBP …
+   PAYMENT_METHODS: ["cod", "card"], // remove "card" to offer cash on delivery only
+   STRIPE_TEST_MODE: true,           // shows the test card number at checkout
    WHATSAPP_NUMBER: "94771234567", // optional, digits only with country code ("" to hide)
    ```
+   Card payments will only work after Phase 8. Until then, choosing *Pay by card* shows a friendly "not set up yet" message.
 4. Click **Commit changes…** → **Commit changes**.
 
 ---
@@ -129,6 +140,8 @@ Use the **same email** everywhere if you can. It makes things simpler.
    | Framework preset | **None** |
    | Build command | *leave empty* (if Cloudflare insists, type `exit 0`) |
    | Build output directory | `/` |
+
+   Cloudflare automatically finds the `functions/` folder (the Stripe code). There's nothing else to set up here.
 
 5. Click **Save and Deploy**. Wait about 1 minute and you'll see **Success** ✅.
 6. Open **https://scent-drip.pages.dev** 🎉 Your admin page is **https://scent-drip.pages.dev/admin**. Bookmark it on your phone too.
@@ -204,7 +217,69 @@ If the project ever gets paused anyway, open the Supabase dashboard and click **
 
 ---
 
-## Phase 8: Product photos and adding perfumes 📸
+## Phase 8: Card payments (Stripe test mode) 💳
+
+Test mode works **exactly** like real payments, but uses fake cards and no money moves. It's free and needs no business verification.
+
+### 8a. Get your Stripe test key
+1. Log in to https://dashboard.stripe.com. Make sure **Test mode** (or **Sandbox**) is switched **on** (top right). You'll see an orange "Test" label.
+2. Go to **Developers** → **API keys**. Next to **Secret key** click **Reveal** and copy it (starts with `sk_test_…`).
+
+### 8b. Get your Supabase secret key
+1. Supabase → **Project Settings** → **API Keys**.
+2. Under **Secret keys**, copy the key (starts with `sb_secret_…`; click **Create new secret key** if there isn't one). Older projects: copy the **service_role** key.
+3. ⚠️ This key can do **anything** to your database. Paste it **only** into Cloudflare (next step), never into GitHub or `config.js`.
+
+### 8c. Give the keys to Cloudflare
+1. Cloudflare → **Workers & Pages** → **scent-drip** → **Settings** → **Variables and Secrets** → **Add**.
+2. Add these for **Production**, choosing **Type: Secret** for the keys:
+
+   | Variable name | Value |
+   |---|---|
+   | `STRIPE_SECRET_KEY` | `sk_test_…` (from 8a) |
+   | `SUPABASE_URL` | your Project URL, e.g. `https://abcdxyz.supabase.co` |
+   | `SUPABASE_SECRET_KEY` | `sb_secret_…` (from 8b) |
+   | `CURRENCY` | your currency code, e.g. `LKR` (must match `config.js`) |
+
+3. Click **Save**.
+
+### 8d. Tell Stripe where to send "payment received"
+1. Stripe → **Developers** → **Webhooks** → **Add endpoint** (or **Add destination** → *Webhook endpoint*).
+2. **Endpoint URL:** `https://scent-drip.pages.dev/api/stripe-webhook` (use your real address).
+3. **Events to send:** select these 4:
+   - `checkout.session.completed`
+   - `checkout.session.expired`
+   - `checkout.session.async_payment_succeeded`
+   - `checkout.session.async_payment_failed`
+4. Save, then on the endpoint's page click **Reveal** under **Signing secret** and copy it (starts with `whsec_…`).
+5. Back in Cloudflare → **Variables and Secrets**, add `STRIPE_WEBHOOK_SECRET` = `whsec_…` (Type: Secret).
+
+### 8e. Redeploy so Cloudflare picks up the keys
+Cloudflare → **scent-drip** → **Deployments** → on the latest deployment click **⋯** → **Retry deployment**.
+(Any new commit to GitHub also redeploys.)
+
+### 8f. Test a payment 🧪
+1. On your shop, add a perfume → **Checkout** → choose **💳 Pay by card** → **Continue to payment**.
+2. On Stripe's page use these test cards (any future expiry date such as `12/34`, any CVC such as `123`, any name):
+
+   | Card number | What happens |
+   |---|---|
+   | `4242 4242 4242 4242` | ✅ Payment succeeds |
+   | `4000 0025 0000 3155` | 🔐 Asks for bank verification (3D Secure), then succeeds |
+   | `4000 0000 0000 9995` | ❌ Declined (insufficient funds) |
+
+3. After paying you come back to the shop and see **"Payment received ✅"**.
+4. Check that:
+   - [ ] /admin → **Orders** shows the order with **💳 Paid by card**
+   - [ ] You got the **order email**
+   - [ ] Stripe → **Payments** lists it
+   - [ ] Stripe → **Webhooks** → your endpoint shows deliveries with status **200**
+
+**How it works:** when a customer chooses card, their bottles are **held** for 30 minutes while they pay. If they pay, the order becomes real and you get the email. If they close the page or the card fails, the order is cancelled automatically and the bottles go back in stock. Unpaid card orders appear faded in /admin as *⏳ Waiting for card payment* and are **not** counted in your sales.
+
+---
+
+## Phase 9: Product photos and adding perfumes 📸
 
 **Make the photos (Canva):**
 1. In Canva → **Create a design** → **Custom size** → **1080 × 1080 px** (square, which matches the shop cards).
@@ -221,7 +296,7 @@ If the project ever gets paused anyway, open the Supabase dashboard and click **
 
 ---
 
-## Phase 9: Test everything, then launch 🎉
+## Phase 10: Test everything, then launch 🎉
 
 Do this on **your phone** *and* a computer:
 
@@ -231,6 +306,8 @@ Do this on **your phone** *and* a computer:
 - [ ] You get the **order email** (Phase 5).
 - [ ] The order appears in **/admin → Orders**, and the perfume's **stock went down** by 1.
 - [ ] Set the test order to **Cancelled** → the stock goes back up.
+- [ ] Pay by card with `4242 4242 4242 4242` → **Paid by card** in /admin plus an email (Phase 8f).
+- [ ] Pay by card but **close** Stripe's page → no email, and the bottles come back within about an hour.
 - [ ] Untick **Visible** on a perfume → it disappears from the shop. Tick it again.
 - [ ] Open `/admin` in a private/incognito window → it asks for a login.
 - [ ] **Delete test orders** before launching: Supabase → **Table Editor** → `orders` → select the test rows → **Delete**.
@@ -240,12 +317,19 @@ Do this on **your phone** *and* a computer:
 
 ## Later: when you're ready
 
-### 💳 Card payments (Stripe or a local gateway)
-- **Start with Cash on Delivery.** It's free, needs no paperwork, and customers trust it.
-- Add card payments once you have regular orders. Every gateway charges about **2–4% per sale** (no monthly fee) and needs **ID and/or business verification**:
-  - **Stripe** (most countries) · **PayHere** (Sri Lanka) · **Razorpay** (India) · **Safepay** (Pakistan) · **Paystack / Flutterwave** (Africa)
-  - ⚠️ **Check that your country is supported.** Stripe is **not** available for businesses in some countries (for example Sri Lanka and Pakistan), so use the local gateway there.
-- Card payments need a small piece of server code (a Supabase Edge Function) plus a "payment received" check. When you've opened your gateway account, ask for this to be added. Never put a gateway's **secret** key in this repo.
+### 💳 Real card payments
+When everything works in test mode and you're ready for real money, choose one of:
+
+**A) Stay with Stripe** (if Stripe supports businesses in your country, see https://stripe.com/global):
+1. Stripe → **Activate payments** (business and bank details, ID verification).
+2. Switch **Test mode off**, then repeat **8a** (live key `sk_live_…`) and **8d** (a **new** webhook for live mode gives a new `whsec_…`).
+3. Update `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in Cloudflare → **Retry deployment**.
+4. In `js/config.js` set `STRIPE_TEST_MODE: false`.
+
+**B) Switch to a local gateway**: **PayHere** (Sri Lanka), **Razorpay** (India), **Safepay** (Pakistan), **Paystack / Flutterwave** (Africa), and so on. Stripe doesn't accept businesses in some countries (for example Sri Lanka and Pakistan).
+The shop and database are already built for "pay online → confirm → email you". Only the two files in `functions/api/` change. Open your gateway account (most have a free sandbox too) and ask for the switch.
+
+Every gateway charges about **2–4% per real sale**, with no monthly fee.
 
 ### 🌐 Your own domain (`scentdrip.com`)
 - Costs about **$10–15/year**. **Cloudflare Registrar** sells domains at cost.
@@ -288,8 +372,8 @@ Customers who enter an email at checkout will then get an order confirmation aut
 - **Shipping perfume:** it's flammable (alcohol based), so many couriers restrict it, especially by air. Confirm with your courier.
 - **Authenticity:** only sell genuine products, and don't use brands' logos or official ad photos without permission.
 - **Backups:** the free Supabase plan has no automatic backups. About once a month: **Table Editor** → `orders`, `order_items`, `perfumes`, `perfume_costs` → **Export → CSV**.
-- **Security:** strong unique passwords and 2FA everywhere. Keep sign-ups **off** (Phase 1). Never paste `secret` / `service_role` / `re_…` / Stripe secret keys into this repo. The Resend key lives only inside the database.
-- **Free plan limits** (plenty for a starting shop): Supabase 500 MB database, 1 GB photos, 50,000 monthly users · Resend 100 emails/day · Cloudflare Pages unlimited visitors.
+- **Security:** strong unique passwords and 2FA everywhere. Keep sign-ups **off** (Phase 1). Never paste `sb_secret_…` / `service_role` / `re_…` / `sk_…` / `whsec_…` keys into this repo. Secret keys live only in **Cloudflare Variables** (Stripe, Supabase secret) and inside the **database** (Resend).
+- **Free plan limits** (plenty for a starting shop): Supabase 500 MB database, 1 GB photos, 50,000 monthly users · Resend 100 emails/day · Cloudflare Pages unlimited visitors, Functions 100,000 requests/day.
 
 ---
 
@@ -301,6 +385,9 @@ Customers who enter an email at checkout will then get an order confirmation aut
 | "This account is not an admin" | Run Phase 1, step 5 with the **exact** email you log in with. |
 | "Login failed: Invalid login credentials" | Wrong password. Reset it in Supabase → Authentication → Users → ⋯ → **Send password recovery**, or create the user again. |
 | Shop says "Couldn't load the drip" | The Supabase project may be **paused**. Open the Supabase dashboard → **Restore project**. |
+| "Card payments aren't set up yet" at checkout | A Cloudflare variable is missing or misspelled (Phase 8c), or you didn't **Retry deployment** after adding it (8e). |
+| Paid by card, but the order still says "⏳ Waiting for card payment" | The webhook isn't reaching your site. Check the URL ends in `/api/stripe-webhook`, `STRIPE_WEBHOOK_SECRET` matches **this** endpoint's signing secret, and redeploy. Stripe → Webhooks → your endpoint shows the error, and you can **Resend** the event once it's fixed. |
+| "Card payment couldn't be started" | Usually a wrong `STRIPE_SECRET_KEY` or a currency Stripe doesn't support. Check Cloudflare → **scent-drip** → **Deployments** → latest → **Functions** / real-time logs. |
 | No order email | 1) Check Spam. 2) `notify_email` must be the email you signed up to Resend with. 3) Run `select status_code, content from net._http_response order by created desc limit 5;` in the SQL Editor to see Resend's reply. 4) Resend → **Logs**. |
 | Photo upload fails | The photo must be under 5 MB. Check that you ran the whole `schema.sql` (it creates the `perfume-images` storage). |
 | My change on GitHub isn't showing | Wait 1–2 minutes and hard-refresh (pull down on your phone, or Ctrl+Shift+R). Check Cloudflare → your project → **Deployments**. |
@@ -318,7 +405,9 @@ js/config.js            ← your settings (the only code file you need to edit)
 js/common.js            Shared helpers
 js/shop.js              Shop: list, bag, checkout
 js/admin.js             Admin: login, orders, inventory
-supabase/schema.sql     Database tables, security rules, ordering, email alerts
+supabase/schema.sql     Database tables, security rules, ordering, payments, email alerts
+functions/api/checkout.js         Starts a Stripe payment (runs on Cloudflare, keeps keys secret)
+functions/api/stripe-webhook.js   Receives "payment received" from Stripe
 _headers                Security settings for Cloudflare Pages
 robots.txt              Keeps the admin page out of Google
 .github/workflows/keep-alive.yml   Keeps the free database awake
