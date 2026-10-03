@@ -26,6 +26,35 @@
     }
   }
 
+  // ---------- Motion: fade things in as they scroll into view ----------
+  const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const revealObserver =
+    "IntersectionObserver" in window && !reduceMotion
+      ? new IntersectionObserver(
+          (entries) =>
+            entries.forEach((en) => {
+              if (!en.isIntersecting) return;
+              en.target.classList.add("in-view");
+              revealObserver.unobserve(en.target);
+            }),
+          { rootMargin: "0px 0px -6% 0px", threshold: 0.1 }
+        )
+      : null;
+  if (revealObserver) document.documentElement.classList.add("js-reveal");
+
+  function observeReveal(root = document) {
+    root.querySelectorAll(".reveal:not(.in-view)").forEach((el) =>
+      revealObserver ? revealObserver.observe(el) : el.classList.add("in-view")
+    );
+  }
+  observeReveal();
+
+  // Header gets a soft shadow once you scroll.
+  const header = document.querySelector(".site-header");
+  const onScroll = () => header.classList.toggle("scrolled", window.scrollY > 10);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
   if (!isConfigured) {
     setupNotice($("main"));
     return;
@@ -222,8 +251,8 @@
 
     $("grid").innerHTML = list
       .map(
-        (p) => `
-      <article class="card" data-id="${p.id}">
+        (p, i) => `
+      <article class="card reveal" style="--d: ${(i % 4) * 0.08}s" data-id="${p.id}">
         <div class="card-img">${imageHtml(p)}${stockBadge(p)}</div>
         <div class="card-body">
           ${p.brand ? `<div class="card-brand">${esc(p.brand)}</div>` : ""}
@@ -237,6 +266,7 @@
       </article>`
       )
       .join("");
+    observeReveal($("grid"));
   }
 
   function openProduct(id) {
@@ -283,8 +313,15 @@
 
   function renderCartCount() {
     const n = Object.values(cart).reduce((a, b) => a + b, 0);
-    $("cart-count").textContent = n;
-    $("cart-count").classList.toggle("hidden", n === 0);
+    const badge = $("cart-count");
+    const grew = n > Number(badge.textContent || 0);
+    badge.textContent = n;
+    badge.classList.toggle("hidden", n === 0);
+    if (grew) {
+      badge.classList.remove("bump");
+      void badge.offsetWidth; // restart the animation
+      badge.classList.add("bump");
+    }
   }
 
   function renderCart() {
