@@ -8,5 +8,7 @@
     "directory": ".",
     "binding": "ASSETS"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Needed by "npx wrangler preview", which Cloudflare runs for non-production branches.
+  "previews": {}
 }
