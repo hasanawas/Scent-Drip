@@ -22,5 +22,5 @@ window.SCENT_DRIP_CONFIG = {
 
   // Optional: your WhatsApp number with country code, digits only (e.g. "94771234567").
   // Shows a "Chat on WhatsApp" button in the shop. Leave "" to hide it.
-  WHATSAPP_NUMBER: "0770407470",
+  WHATSAPP_NUMBER: "+94770407470",
 };
