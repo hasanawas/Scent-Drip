@@ -32,7 +32,7 @@
     if (error || !ok) {
       await db.auth.signOut();
       showLogin();
-      toast("This account is not an admin. See README step 3.", "error");
+      toast("This account is not an admin. See README → Phase 1, step 5.", "error");
       return;
     }
     $("login-form").classList.add("hidden");
@@ -84,10 +84,20 @@
   const orderProfit = (o) =>
     o.order_items.reduce((s, i) => s + (i.unit_price - (i.unit_cost ?? 0)) * i.quantity, 0);
 
+  // Card orders count once Stripe confirms payment; cash orders count right away.
+  const isReal = (o) => !["pending", "failed"].includes(o.payment_status);
+
+  function paymentBadge(o) {
+    if (o.payment_method !== "card") return `<span class="pay-badge">💵 Cash on delivery</span>`;
+    if (o.payment_status === "paid") return `<span class="pay-badge paid">💳 Paid by card</span>`;
+    if (o.payment_status === "pending") return `<span class="pay-badge pending">⏳ Waiting for card payment</span>`;
+    return `<span class="pay-badge failed">✕ Card payment not completed</span>`;
+  }
+
   function renderOrders() {
-    const live = orders.filter((o) => o.status !== "cancelled");
-    const delivered = orders.filter((o) => o.status === "delivered");
-    const newCount = orders.filter((o) => o.status === "new").length;
+    const live = orders.filter((o) => o.status !== "cancelled" && isReal(o));
+    const delivered = orders.filter((o) => o.status === "delivered" && isReal(o));
+    const newCount = orders.filter((o) => o.status === "new" && isReal(o)).length;
 
     $("new-count").textContent = newCount;
     $("new-count").classList.toggle("hidden", newCount === 0);
@@ -113,7 +123,7 @@
     $("orders-list").innerHTML = list
       .map(
         (o) => `
-      <div class="order st-${o.status}">
+      <div class="order st-${o.status} ${isReal(o) ? "" : "unpaid"}">
         <div class="order-head">
           <h3>Order #${o.id} <span class="when">${new Date(o.created_at).toLocaleString()}</span></h3>
           <select class="input" style="width:auto" data-order="${o.id}" aria-label="Order status">
@@ -124,7 +134,7 @@
           <div>
             <ul>${o.order_items.map((i) => `<li>${i.quantity} × ${esc(i.perfume_name)} — ${money(i.unit_price * i.quantity)}</li>`).join("")}</ul>
             <p><strong>Total: ${money(o.total)}</strong> · <span class="pos">Profit ${money(orderProfit(o))}</span><br />
-            <span class="muted">Payment: ${o.payment_method === "cod" ? "Cash on delivery" : esc(o.payment_method)}</span></p>
+            ${paymentBadge(o)}</p>
           </div>
           <div>
             <strong>${esc(o.customer_name)}</strong><br />
@@ -166,12 +176,18 @@
     if (channel) db.removeChannel(channel);
     channel = db
       .channel("new-orders")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        const before = orders.find((x) => x.id === payload.new?.id);
+        // Alert for new cash orders, and for card orders once they're paid.
+        const isNewOrder =
+          (payload.eventType === "INSERT" && payload.new.payment_method !== "card") ||
+          (payload.eventType === "UPDATE" && payload.new.payment_status === "paid" && before?.payment_status !== "paid");
         // Wait a moment so the order's items are saved before we fetch it.
         setTimeout(async () => {
           await Promise.all([loadOrders(), loadInventory()]);
+          if (!isNewOrder) return;
           const o = orders.find((x) => x.id === payload.new.id);
-          const msg = `New order #${payload.new.id}` + (o ? ` — ${money(o.total)} from ${o.customer_name}` : "");
+          const msg = `New order #${payload.new.id}` + (o ? ` · ${money(o.total)} from ${o.customer_name}` : "");
           toast("🛍️ " + msg, "success");
           beep();
           if ("Notification" in window && Notification.permission === "granted") {

@@ -176,7 +176,19 @@ select.input option { background: var(--surface); }
 @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
 .checkbox { display: flex !important; align-items: center; gap: 8px; grid-template-columns: none; }
 input[type="checkbox"] { accent-color: var(--neon); width: 16px; height: 16px; }
-.pay-box { border: 1px dashed var(--neon); border-radius: 12px; padding: 12px; background: rgba(198, 255, 0, .05); font-size: 14px; }
+.pay-options { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.pay-options legend { font-size: 14px; font-weight: 500; margin-bottom: 6px; padding: 0; }
+.pay-option { display: flex !important; grid-template-columns: none; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; transition: all .15s; }
+.pay-option:has(input:checked) { border-color: var(--neon); background: rgba(198, 255, 0, .06); box-shadow: 0 0 0 1px var(--neon); }
+.pay-option input { accent-color: var(--neon); width: 18px; height: 18px; margin: 0; }
+.pay-option span { display: grid; }
+.pay-option small { color: var(--muted); font-weight: 400; }
+.test-note { margin: 0; font-size: 13px; border: 1px dashed var(--neon-2); border-radius: 12px; padding: 10px 12px; color: #f0c6ea; }
+.test-note code { color: var(--neon); }
+.pay-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); }
+.pay-badge.paid { color: var(--on-neon); background: var(--neon); border-color: var(--neon); }
+.pay-badge.pending { color: var(--neon-2); border-color: var(--neon-2); }
+.pay-badge.failed { color: var(--danger); border-color: var(--danger); }
 
 .success { text-align: center; padding: 24px 0; }
 .success .big { font-size: 56px; }
@@ -246,6 +258,7 @@ tr.inactive td { opacity: .45; }
 .order.st-shipped { border-left-color: #a678ff; }
 .order.st-delivered { border-left-color: var(--success); }
 .order.st-cancelled { border-left-color: var(--danger); opacity: .6; }
+.order.unpaid { border-left-color: var(--line); box-shadow: none; opacity: .7; }
 .order-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .order-head h3 { margin: 0; font-size: 16px; }
 .order-head .when { color: var(--muted); font-size: 13px; font-weight: 400; margin-left: 6px; }

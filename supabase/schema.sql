@@ -60,12 +60,17 @@ create table if not exists public.orders (
   customer_email text,
   address        text not null,
   notes          text,
-  payment_method text not null default 'cod',
+  payment_method text not null default 'cod',      -- 'cod' or 'card'
   status         text not null default 'new'
                  check (status in ('new', 'confirmed', 'shipped', 'delivered', 'cancelled')),
   total          numeric(10,2) not null default 0,
   created_at     timestamptz not null default now()
 );
+alter table public.orders
+  add column if not exists payment_status    text not null default 'unpaid'
+      check (payment_status in ('unpaid', 'pending', 'paid', 'failed')),  -- unpaid = cash on delivery
+  add column if not exists stripe_session_id text,
+  add column if not exists paid_at           timestamptz;
 
 create table if not exists public.order_items (
   id           bigint generated always as identity primary key,
@@ -79,13 +84,20 @@ create table if not exists public.order_items (
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
 
 -- ---------------------------------------------------------------------
---  5. PRIVATE SETTINGS (Telegram bot details). Not reachable from the website.
+--  5. PRIVATE SETTINGS (email + Telegram alert details). Not reachable from the website.
 -- ---------------------------------------------------------------------
 create table if not exists public.app_settings (
-  id                 int primary key default 1 check (id = 1),
-  telegram_bot_token text,
-  telegram_chat_id   text
+  id int primary key default 1 check (id = 1)
 );
+alter table public.app_settings
+  add column if not exists resend_api_key          text,    -- from resend.com → API Keys
+  add column if not exists notify_email            text,    -- where YOU receive new-order emails
+  add column if not exists email_from              text not null default 'Scent Drip <onboarding@resend.dev>',
+  add column if not exists customer_emails_enabled boolean not null default false, -- needs your own domain in Resend
+  add column if not exists shop_url                text,    -- e.g. https://scent-drip.pages.dev
+  add column if not exists currency                text not null default '',
+  add column if not exists telegram_bot_token      text,    -- optional
+  add column if not exists telegram_chat_id        text;    -- optional
 insert into public.app_settings (id) values (1) on conflict do nothing;
 
 -- ---------------------------------------------------------------------
@@ -112,51 +124,130 @@ create policy "admins manage costs"    on public.perfume_costs for all using (pu
 create policy "admins manage orders"   on public.orders        for all using (public.is_admin()) with check (public.is_admin());
 create policy "admins manage items"    on public.order_items   for all using (public.is_admin()) with check (public.is_admin());
 
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 grant select on public.perfumes to anon;
 grant select on public.admins to authenticated;
 grant select, insert, update, delete on public.perfumes, public.perfume_costs, public.orders, public.order_items to authenticated;
 revoke all on public.app_settings from anon, authenticated;
 
 -- ---------------------------------------------------------------------
---  7. TELEGRAM ALERT for new orders (does nothing until you add your bot details)
+--  7. NEW-ORDER ALERTS: email (Resend) and/or Telegram.
+--     Each one does nothing until you add its details (README → Phase 5).
 -- ---------------------------------------------------------------------
+create or replace function public.html_escape(t text) returns text
+language sql immutable as $$
+  select replace(replace(replace(replace(replace(coalesce(t, ''),
+         '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '"', '&quot;'), '''', '&#39;');
+$$;
+
 create or replace function public.notify_new_order(p_order_id bigint) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 declare
-  s       public.app_settings%rowtype;
-  o       public.orders%rowtype;
-  v_items text;
+  s          public.app_settings%rowtype;
+  o          public.orders%rowtype;
+  v_total    text;
+  v_items    text;
+  v_rows     text;
+  v_customer text;
+  v_payment  text;
 begin
   select * into s from public.app_settings where id = 1;
-  if s.telegram_bot_token is null or s.telegram_chat_id is null then
-    return;
+  select * into o from public.orders where id = p_order_id;
+  v_total := trim(coalesce(s.currency, '') || ' ' || to_char(o.total, 'FM999,999,990.00'));
+  v_payment := case when o.payment_method = 'card' then 'Paid by card ✅' else 'Cash on delivery' end;
+
+  select string_agg(format('• %s × %s', quantity, perfume_name), E'\n' order by id),
+         string_agg(format('<tr><td style="padding:6px 0">%s × %s</td><td style="padding:6px 0;text-align:right">%s</td></tr>',
+                           quantity, html_escape(perfume_name), to_char(unit_price * quantity, 'FM999,999,990.00')), '' order by id)
+    into v_items, v_rows
+    from public.order_items where order_id = p_order_id;
+
+  v_customer := format('<p style="margin:16px 0 0"><b>%s</b><br>📞 %s%s<br>📍 %s%s</p>',
+                       html_escape(o.customer_name), html_escape(o.customer_phone),
+                       coalesce('<br>✉️ ' || html_escape(o.customer_email), ''),
+                       html_escape(o.address),
+                       coalesce('<br>📝 ' || html_escape(o.notes), ''));
+
+  -- 1) Email to you
+  if s.resend_api_key is not null and s.notify_email is not null then
+    begin
+      perform net.http_post(
+        url     := 'https://api.resend.com/emails',
+        headers := jsonb_build_object('Authorization', 'Bearer ' || s.resend_api_key, 'Content-Type', 'application/json'),
+        body    := jsonb_build_object(
+          'from', s.email_from,
+          'to', jsonb_build_array(s.notify_email),
+          'subject', format('🛍️ New order #%s · %s from %s', o.id, v_total, o.customer_name),
+          'html', format('<div style="font-family:Arial,sans-serif;max-width:520px">'
+                         '<h2 style="margin:0 0 12px">New order #%s</h2>'
+                         '<table style="width:100%%;border-collapse:collapse">%s'
+                         '<tr><td style="padding:8px 0;border-top:1px solid #ddd"><b>Total</b></td>'
+                         '<td style="padding:8px 0;border-top:1px solid #ddd;text-align:right"><b>%s</b></td></tr></table>'
+                         '%s<p style="margin:16px 0 0;color:#666">Payment: %s%s</p></div>',
+                         o.id, v_rows, html_escape(v_total), v_customer, v_payment,
+                         coalesce(' · <a href="' || html_escape(rtrim(s.shop_url, '/')) || '/admin.html">Open admin</a>', ''))),
+        timeout_milliseconds := 10000
+      );
+    exception when others then
+      raise warning 'Order email failed: %', sqlerrm;
+    end;
   end if;
 
-  select * into o from public.orders where id = p_order_id;
-  select string_agg(format('• %s × %s', quantity, perfume_name), E'\n')
-    into v_items from public.order_items where order_id = p_order_id;
+  -- 2) Confirmation email to the customer (only works once you verify your own domain in Resend)
+  if s.customer_emails_enabled and s.resend_api_key is not null and o.customer_email is not null then
+    begin
+      perform net.http_post(
+        url     := 'https://api.resend.com/emails',
+        headers := jsonb_build_object('Authorization', 'Bearer ' || s.resend_api_key, 'Content-Type', 'application/json'),
+        body    := jsonb_build_object(
+          'from', s.email_from,
+          'to', jsonb_build_array(o.customer_email),
+          'reply_to', s.notify_email,
+          'subject', format('Your Scent Drip order #%s ✦', o.id),
+          'html', format('<div style="font-family:Arial,sans-serif;max-width:520px">'
+                         '<h2 style="margin:0 0 8px">Thanks, %s! 💅</h2>'
+                         '<p>We got your order #%s. We''ll call you on %s to confirm delivery.</p>'
+                         '<table style="width:100%%;border-collapse:collapse">%s'
+                         '<tr><td style="padding:8px 0;border-top:1px solid #ddd"><b>Total · %s</b></td>'
+                         '<td style="padding:8px 0;border-top:1px solid #ddd;text-align:right"><b>%s</b></td></tr></table>'
+                         '<p style="color:#666">Scent Drip · 100%% authentic, always</p></div>',
+                         html_escape(o.customer_name), o.id, html_escape(o.customer_phone), v_rows, v_payment, html_escape(v_total))),
+        timeout_milliseconds := 10000
+      );
+    exception when others then
+      raise warning 'Customer email failed: %', sqlerrm;
+    end;
+  end if;
 
-  perform net.http_post(
-    url  := 'https://api.telegram.org/bot' || s.telegram_bot_token || '/sendMessage',
-    body := jsonb_build_object(
-      'chat_id', s.telegram_chat_id,
-      'text', format(E'🛍️ New order #%s\n\n%s\n\nTotal: %s\n\n👤 %s\n📞 %s\n📍 %s%s',
-                     o.id, v_items, o.total, o.customer_name, o.customer_phone, o.address,
-                     coalesce(E'\n📝 ' || o.notes, '')))
-  );
-exception when others then
-  -- A failed alert must never block a customer's order.
-  raise warning 'Order alert failed: %', sqlerrm;
+  -- 3) Telegram message to you (optional)
+  if s.telegram_bot_token is not null and s.telegram_chat_id is not null then
+    begin
+      perform net.http_post(
+        url  := 'https://api.telegram.org/bot' || s.telegram_bot_token || '/sendMessage',
+        body := jsonb_build_object(
+          'chat_id', s.telegram_chat_id,
+          'text', format(E'🛍️ New order #%s\n\n%s\n\nTotal: %s · %s\n\n👤 %s\n📞 %s\n📍 %s%s',
+                         o.id, v_items, v_total, v_payment, o.customer_name, o.customer_phone, o.address,
+                         coalesce(E'\n📝 ' || o.notes, '')))
+      );
+    exception when others then
+      raise warning 'Telegram alert failed: %', sqlerrm;
+    end;
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------
---  8. PLACE ORDER — the ONLY way customers can create an order.
+--  8. PLACING ORDERS
 --     Prices come from the database (customers can't change them),
 --     stock is checked and reduced automatically.
+--     • Cash on delivery → place_order()       (called from the shop page)
+--     • Card (Stripe)    → place_card_order()  (called only by the secure server
+--                                              function in functions/api/checkout.js)
 -- ---------------------------------------------------------------------
-create or replace function public.place_order(
-  p_name text, p_phone text, p_email text, p_address text, p_notes text, p_items jsonb
+drop function if exists public.place_order(text, text, text, text, text, jsonb);
+
+create or replace function public.create_order_internal(
+  p_name text, p_phone text, p_email text, p_address text, p_notes text, p_items jsonb, p_payment_method text
 ) returns bigint
 language plpgsql security definer set search_path = public as $$
 declare
@@ -170,15 +261,21 @@ begin
     raise exception 'Please fill in your name, phone number and address.';
   end if;
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
-    raise exception 'Your cart is empty.';
+    raise exception 'Your bag is empty.';
   end if;
   if jsonb_array_length(p_items) > 50 then
     raise exception 'Too many items in one order.';
   end if;
 
-  insert into public.orders (customer_name, customer_phone, customer_email, address, notes)
+  -- Release stock held by card payments that were abandoned (Stripe pages expire after 30 min).
+  update public.orders set status = 'cancelled', payment_status = 'failed'
+   where payment_method = 'card' and payment_status = 'pending' and status <> 'cancelled'
+     and created_at < now() - interval '1 hour';
+
+  insert into public.orders (customer_name, customer_phone, customer_email, address, notes, payment_method, payment_status)
   values (left(trim(p_name), 100), left(trim(p_phone), 30), nullif(left(trim(coalesce(p_email, '')), 200), ''),
-          left(trim(p_address), 500), nullif(left(trim(coalesce(p_notes, '')), 500), ''))
+          left(trim(p_address), 500), nullif(left(trim(coalesce(p_notes, '')), 500), ''),
+          p_payment_method, case when p_payment_method = 'card' then 'pending' else 'unpaid' end)
   returning id into v_order_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
@@ -191,7 +288,7 @@ begin
      where id = (v_item ->> 'perfume_id')::uuid and is_active
      for update;
     if not found then
-      raise exception 'A perfume in your cart is no longer available. Please refresh the page.';
+      raise exception 'A perfume in your bag is no longer available. Please refresh the page.';
     end if;
     if p.stock < v_qty then
       raise exception 'Sorry, only % left of "%".', p.stock, p.name;
@@ -207,11 +304,74 @@ begin
   end loop;
 
   update public.orders set total = v_total where id = v_order_id;
-  perform public.notify_new_order(v_order_id);
   return v_order_id;
 end $$;
 
+-- Cash on delivery (the shop page calls this)
+create or replace function public.place_order(
+  p_name text, p_phone text, p_email text, p_address text, p_notes text, p_items jsonb
+) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare v_id bigint;
+begin
+  v_id := public.create_order_internal(p_name, p_phone, p_email, p_address, p_notes, p_items, 'cod');
+  perform public.notify_new_order(v_id);
+  return v_id;
+end $$;
+
+-- Card payment: creates a "waiting for payment" order and returns what Stripe needs.
+create or replace function public.place_card_order(
+  p_name text, p_phone text, p_email text, p_address text, p_notes text, p_items jsonb
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v_id bigint;
+begin
+  v_id := public.create_order_internal(p_name, p_phone, p_email, p_address, p_notes, p_items, 'card');
+  return jsonb_build_object(
+    'id', v_id,
+    'email', (select customer_email from public.orders where id = v_id),
+    'items', (select jsonb_agg(jsonb_build_object('name', perfume_name, 'unit_price', unit_price, 'quantity', quantity) order by id)
+                from public.order_items where order_id = v_id));
+end $$;
+
+create or replace function public.attach_stripe_session(p_order_id bigint, p_session_id text) returns void
+language sql security definer set search_path = public as $$
+  update public.orders set stripe_session_id = p_session_id where id = p_order_id and payment_status = 'pending';
+$$;
+
+-- Stripe confirmed the payment → mark paid and send the new-order email.
+create or replace function public.mark_order_paid(p_order_id bigint, p_session_id text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_id bigint;
+begin
+  update public.orders set payment_status = 'paid', paid_at = now()
+   where id = p_order_id and stripe_session_id = p_session_id and payment_status = 'pending'
+  returning id into v_id;
+  if v_id is not null then
+    perform public.notify_new_order(v_id);
+  end if;
+  return v_id is not null;
+end $$;
+
+-- Payment abandoned or failed → cancel the order (stock goes back automatically).
+create or replace function public.cancel_unpaid_order(p_order_id bigint, p_session_id text default null) returns void
+language sql security definer set search_path = public as $$
+  update public.orders set status = 'cancelled', payment_status = 'failed'
+   where id = p_order_id and payment_status = 'pending'
+     and (p_session_id is null or stripe_session_id = p_session_id);
+$$;
+
 revoke execute on function public.notify_new_order(bigint) from public, anon, authenticated;
+revoke execute on function public.html_escape(text) from public, anon, authenticated;
+revoke execute on function public.create_order_internal(text, text, text, text, text, jsonb, text) from public, anon, authenticated;
+revoke execute on function public.place_card_order(text, text, text, text, text, jsonb) from public, anon, authenticated;
+revoke execute on function public.attach_stripe_session(bigint, text) from public, anon, authenticated;
+revoke execute on function public.mark_order_paid(bigint, text) from public, anon, authenticated;
+revoke execute on function public.cancel_unpaid_order(bigint, text) from public, anon, authenticated;
+grant execute on function public.place_card_order(text, text, text, text, text, jsonb) to service_role;
+grant execute on function public.attach_stripe_session(bigint, text) to service_role;
+grant execute on function public.mark_order_paid(bigint, text) to service_role;
+grant execute on function public.cancel_unpaid_order(bigint, text) to service_role;
 grant execute on function public.place_order(text, text, text, text, text, jsonb) to anon, authenticated;
 grant execute on function public.is_admin() to anon, authenticated;
 
@@ -262,4 +422,4 @@ create policy "admins update perfume images" on storage.objects for update to au
 create policy "admins delete perfume images" on storage.objects for delete to authenticated
   using (bucket_id = 'perfume-images' and public.is_admin());
 
--- Done! Next: create your admin login (see README, step 3).
+-- Done! Next: create your admin login (README → Phase 1, step 4).
