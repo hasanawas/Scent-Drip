@@ -1,6 +1,6 @@
 // =====================================================================
 //  SCENT DRIP — settings. This is the ONLY file you need to edit.
-//  (See README.md, step 2, for where to find these values.)
+//  (See README.md → Phase 2 for where to find these values.)
 // =====================================================================
 window.SCENT_DRIP_CONFIG = {
   // Supabase → Project Settings → API → "Project URL"

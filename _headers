@@ -1,0 +1,10 @@
+# Cloudflare Pages security headers (applied automatically on every deploy)
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+
+/admin*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store

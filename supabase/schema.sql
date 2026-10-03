@@ -79,13 +79,20 @@ create table if not exists public.order_items (
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
 
 -- ---------------------------------------------------------------------
---  5. PRIVATE SETTINGS (Telegram bot details). Not reachable from the website.
+--  5. PRIVATE SETTINGS (email + Telegram alert details). Not reachable from the website.
 -- ---------------------------------------------------------------------
 create table if not exists public.app_settings (
-  id                 int primary key default 1 check (id = 1),
-  telegram_bot_token text,
-  telegram_chat_id   text
+  id int primary key default 1 check (id = 1)
 );
+alter table public.app_settings
+  add column if not exists resend_api_key          text,    -- from resend.com → API Keys
+  add column if not exists notify_email            text,    -- where YOU receive new-order emails
+  add column if not exists email_from              text not null default 'Scent Drip <onboarding@resend.dev>',
+  add column if not exists customer_emails_enabled boolean not null default false, -- needs your own domain in Resend
+  add column if not exists shop_url                text,    -- e.g. https://scent-drip.pages.dev
+  add column if not exists currency                text not null default '',
+  add column if not exists telegram_bot_token      text,    -- optional
+  add column if not exists telegram_chat_id        text;    -- optional
 insert into public.app_settings (id) values (1) on conflict do nothing;
 
 -- ---------------------------------------------------------------------
@@ -119,35 +126,107 @@ grant select, insert, update, delete on public.perfumes, public.perfume_costs, p
 revoke all on public.app_settings from anon, authenticated;
 
 -- ---------------------------------------------------------------------
---  7. TELEGRAM ALERT for new orders (does nothing until you add your bot details)
+--  7. NEW-ORDER ALERTS: email (Resend) and/or Telegram.
+--     Each one does nothing until you add its details (README → Phase 5).
 -- ---------------------------------------------------------------------
+create or replace function public.html_escape(t text) returns text
+language sql immutable as $$
+  select replace(replace(replace(replace(replace(coalesce(t, ''),
+         '&', '&amp;'), '<', '&lt;'), '>', '&gt;'), '"', '&quot;'), '''', '&#39;');
+$$;
+
 create or replace function public.notify_new_order(p_order_id bigint) returns void
 language plpgsql security definer set search_path = public, extensions as $$
 declare
-  s       public.app_settings%rowtype;
-  o       public.orders%rowtype;
-  v_items text;
+  s          public.app_settings%rowtype;
+  o          public.orders%rowtype;
+  v_total    text;
+  v_items    text;
+  v_rows     text;
+  v_customer text;
 begin
   select * into s from public.app_settings where id = 1;
-  if s.telegram_bot_token is null or s.telegram_chat_id is null then
-    return;
+  select * into o from public.orders where id = p_order_id;
+  v_total := trim(coalesce(s.currency, '') || ' ' || to_char(o.total, 'FM999,999,990.00'));
+
+  select string_agg(format('• %s × %s', quantity, perfume_name), E'\n' order by id),
+         string_agg(format('<tr><td style="padding:6px 0">%s × %s</td><td style="padding:6px 0;text-align:right">%s</td></tr>',
+                           quantity, html_escape(perfume_name), to_char(unit_price * quantity, 'FM999,999,990.00')), '' order by id)
+    into v_items, v_rows
+    from public.order_items where order_id = p_order_id;
+
+  v_customer := format('<p style="margin:16px 0 0"><b>%s</b><br>📞 %s%s<br>📍 %s%s</p>',
+                       html_escape(o.customer_name), html_escape(o.customer_phone),
+                       coalesce('<br>✉️ ' || html_escape(o.customer_email), ''),
+                       html_escape(o.address),
+                       coalesce('<br>📝 ' || html_escape(o.notes), ''));
+
+  -- 1) Email to you
+  if s.resend_api_key is not null and s.notify_email is not null then
+    begin
+      perform net.http_post(
+        url     := 'https://api.resend.com/emails',
+        headers := jsonb_build_object('Authorization', 'Bearer ' || s.resend_api_key, 'Content-Type', 'application/json'),
+        body    := jsonb_build_object(
+          'from', s.email_from,
+          'to', jsonb_build_array(s.notify_email),
+          'subject', format('🛍️ New order #%s · %s from %s', o.id, v_total, o.customer_name),
+          'html', format('<div style="font-family:Arial,sans-serif;max-width:520px">'
+                         '<h2 style="margin:0 0 12px">New order #%s</h2>'
+                         '<table style="width:100%%;border-collapse:collapse">%s'
+                         '<tr><td style="padding:8px 0;border-top:1px solid #ddd"><b>Total</b></td>'
+                         '<td style="padding:8px 0;border-top:1px solid #ddd;text-align:right"><b>%s</b></td></tr></table>'
+                         '%s<p style="margin:16px 0 0;color:#666">Payment: Cash on delivery%s</p></div>',
+                         o.id, v_rows, html_escape(v_total), v_customer,
+                         coalesce(' · <a href="' || html_escape(rtrim(s.shop_url, '/')) || '/admin.html">Open admin</a>', ''))),
+        timeout_milliseconds := 10000
+      );
+    exception when others then
+      raise warning 'Order email failed: %', sqlerrm;
+    end;
   end if;
 
-  select * into o from public.orders where id = p_order_id;
-  select string_agg(format('• %s × %s', quantity, perfume_name), E'\n')
-    into v_items from public.order_items where order_id = p_order_id;
+  -- 2) Confirmation email to the customer (only works once you verify your own domain in Resend)
+  if s.customer_emails_enabled and s.resend_api_key is not null and o.customer_email is not null then
+    begin
+      perform net.http_post(
+        url     := 'https://api.resend.com/emails',
+        headers := jsonb_build_object('Authorization', 'Bearer ' || s.resend_api_key, 'Content-Type', 'application/json'),
+        body    := jsonb_build_object(
+          'from', s.email_from,
+          'to', jsonb_build_array(o.customer_email),
+          'reply_to', s.notify_email,
+          'subject', format('Your Scent Drip order #%s ✦', o.id),
+          'html', format('<div style="font-family:Arial,sans-serif;max-width:520px">'
+                         '<h2 style="margin:0 0 8px">Thanks, %s! 💅</h2>'
+                         '<p>We got your order #%s. We''ll call you on %s to confirm delivery.</p>'
+                         '<table style="width:100%%;border-collapse:collapse">%s'
+                         '<tr><td style="padding:8px 0;border-top:1px solid #ddd"><b>Total (cash on delivery)</b></td>'
+                         '<td style="padding:8px 0;border-top:1px solid #ddd;text-align:right"><b>%s</b></td></tr></table>'
+                         '<p style="color:#666">Scent Drip · 100%% authentic, always</p></div>',
+                         html_escape(o.customer_name), o.id, html_escape(o.customer_phone), v_rows, html_escape(v_total))),
+        timeout_milliseconds := 10000
+      );
+    exception when others then
+      raise warning 'Customer email failed: %', sqlerrm;
+    end;
+  end if;
 
-  perform net.http_post(
-    url  := 'https://api.telegram.org/bot' || s.telegram_bot_token || '/sendMessage',
-    body := jsonb_build_object(
-      'chat_id', s.telegram_chat_id,
-      'text', format(E'🛍️ New order #%s\n\n%s\n\nTotal: %s\n\n👤 %s\n📞 %s\n📍 %s%s',
-                     o.id, v_items, o.total, o.customer_name, o.customer_phone, o.address,
-                     coalesce(E'\n📝 ' || o.notes, '')))
-  );
-exception when others then
-  -- A failed alert must never block a customer's order.
-  raise warning 'Order alert failed: %', sqlerrm;
+  -- 3) Telegram message to you (optional)
+  if s.telegram_bot_token is not null and s.telegram_chat_id is not null then
+    begin
+      perform net.http_post(
+        url  := 'https://api.telegram.org/bot' || s.telegram_bot_token || '/sendMessage',
+        body := jsonb_build_object(
+          'chat_id', s.telegram_chat_id,
+          'text', format(E'🛍️ New order #%s\n\n%s\n\nTotal: %s\n\n👤 %s\n📞 %s\n📍 %s%s',
+                         o.id, v_items, v_total, o.customer_name, o.customer_phone, o.address,
+                         coalesce(E'\n📝 ' || o.notes, '')))
+      );
+    exception when others then
+      raise warning 'Telegram alert failed: %', sqlerrm;
+    end;
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -212,6 +291,7 @@ begin
 end $$;
 
 revoke execute on function public.notify_new_order(bigint) from public, anon, authenticated;
+revoke execute on function public.html_escape(text) from public, anon, authenticated;
 grant execute on function public.place_order(text, text, text, text, text, jsonb) to anon, authenticated;
 grant execute on function public.is_admin() to anon, authenticated;
 
@@ -262,4 +342,4 @@ create policy "admins update perfume images" on storage.objects for update to au
 create policy "admins delete perfume images" on storage.objects for delete to authenticated
   using (bucket_id = 'perfume-images' and public.is_admin());
 
--- Done! Next: create your admin login (see README, step 3).
+-- Done! Next: create your admin login (README → Phase 1, step 4).

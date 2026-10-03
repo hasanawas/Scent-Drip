@@ -32,7 +32,7 @@
     if (error || !ok) {
       await db.auth.signOut();
       showLogin();
-      toast("This account is not an admin. See README step 3.", "error");
+      toast("This account is not an admin. See README → Phase 1, step 5.", "error");
       return;
     }
     $("login-form").classList.add("hidden");

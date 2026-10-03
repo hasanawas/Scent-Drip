@@ -43,7 +43,7 @@
         <h2>Almost there! 👋</h2>
         <p>Scent Drip isn't connected to its database yet.</p>
         <p>Open <code>js/config.js</code> and paste your Supabase URL and key
-        (see <strong>README.md → Step 2</strong>).</p>
+        (see <strong>README.md → Phase 2</strong>).</p>
       </div>`;
   }
 

@@ -1,6 +1,6 @@
 # Supabase pauses free projects after ~7 days with no activity.
 # This job visits the database twice a week so the shop never goes to sleep.
-# Setup: README.md → Step 6.
+# Setup: README.md → Phase 7.
 name: Keep database awake
 
 on:
@@ -18,7 +18,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
-            echo "::warning::Add SUPABASE_URL and SUPABASE_KEY repository secrets (README step 6)."
+            echo "::warning::Add SUPABASE_URL and SUPABASE_KEY repository secrets (README → Phase 7)."
             exit 0
           fi
           curl -fsS "$SUPABASE_URL/rest/v1/perfumes?select=id&limit=1" -H "apikey: $SUPABASE_KEY"
