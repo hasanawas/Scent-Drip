@@ -7,7 +7,7 @@
   <meta name="description" content="Scent Drip — authentic perfumes, delivered to your door." />
   <link rel="icon" type="image/png" href="images/favicon.png" />
   <link rel="apple-touch-icon" href="images/favicon.png" />
-  <meta name="theme-color" content="#faf8f5" />
+  <meta name="theme-color" content="#0b0b0b" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
@@ -16,7 +16,7 @@
 <body>
   <header class="site-header">
     <div class="wrap">
-      <a href="./" class="logo"><img src="images/logo-mark-dark.png" alt="" />Scent Drip</a>
+      <a href="./" class="logo"><img src="images/logo-mark.png" alt="" />Scent Drip</a>
       <nav class="header-actions">
         <a class="text-link" href="#" data-track>Track order</a>
         <a class="icon-link instagram-link" href="https://www.instagram.com/scent_drip/" target="_blank" rel="noopener" aria-label="Scent Drip on Instagram"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none"/></svg></a>
@@ -28,23 +28,28 @@
   </header>
 
   <section class="hero">
-    <div class="wrap">
-      <img class="hero-logo" src="images/logo-full-dark.png" alt="Scent Drip" />
+    <div class="hero-mist" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="wrap hero-inner">
+      <div class="hero-mark">
+        <img src="images/logo-mark.png" alt="Scent Drip" />
+        <span class="drip" aria-hidden="true"></span>
+      </div>
       <p class="eyebrow">Authentic fragrances · Hand-picked</p>
-      <h1>Fragrances that <em>linger</em></h1>
-      <p class="lede">A small, curated collection of perfumes we love — delivered to your door.</p>
-      <a class="btn" href="#collection">Shop the collection</a>
+      <h1><span class="line"><span>Fragrances that</span></span><span class="line"><span><em>linger</em></span></span></h1>
+      <p class="lede">A small, curated collection of perfumes we love, delivered to your door.</p>
+      <a class="btn light" href="#collection">Shop the collection</a>
     </div>
+    <a class="scroll-cue" href="#collection" aria-label="Scroll to the collection"><span></span></a>
   </section>
 
-  <ul class="promises wrap" aria-label="Why Scent Drip">
-    <li><strong>100% authentic</strong><span>Every bottle, guaranteed</span></li>
-    <li><strong>Cash on delivery</strong><span>Pay when it arrives</span></li>
-    <li><strong>Delivered to you</strong><span>Carefully packed</span></li>
-  </ul>
+  <div class="marquee" aria-label="100% authentic · Hand-picked fragrances · Cash on delivery · Delivered to your door">
+    <div class="marquee-track" aria-hidden="true">
+      <span>100% authentic <i>✦</i> Hand-picked fragrances <i>✦</i> Cash on delivery <i>✦</i> Delivered to your door <i>✦</i> New drops on Instagram <i>✦</i> </span><span>100% authentic <i>✦</i> Hand-picked fragrances <i>✦</i> Cash on delivery <i>✦</i> Delivered to your door <i>✦</i> New drops on Instagram <i>✦</i> </span>
+    </div>
+  </div>
 
   <main class="wrap" id="main">
-    <div class="section-head" id="collection">
+    <div class="section-head reveal" id="collection">
       <p class="eyebrow">Shop</p>
       <h2>The Collection</h2>
     </div>
@@ -86,18 +91,18 @@
   </main>
 
   <section class="instagram">
-    <div class="wrap">
-      <img src="images/logo-mark-dark.png" alt="" class="instagram-mark" />
+    <div class="wrap reveal">
+      <img src="images/logo-mark.png" alt="" class="instagram-mark" />
       <p class="eyebrow">Follow along</p>
       <h2><a href="https://www.instagram.com/scent_drip/" target="_blank" rel="noopener">@scent_drip</a></h2>
       <p class="lede">New arrivals, restocks and little scent stories. Find us on Instagram.</p>
-      <a class="btn outline instagram-btn" href="https://www.instagram.com/scent_drip/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none"/></svg> Follow on Instagram</a>
+      <a class="btn ghost instagram-btn" href="https://www.instagram.com/scent_drip/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none"/></svg> Follow on Instagram</a>
     </div>
   </section>
 
   <footer class="site-footer">
     <div class="wrap">
-      <img src="images/logo-mark-dark.png" alt="" />
+      <img src="images/logo-mark.png" alt="" />
       <nav class="footer-links">
         <a href="https://www.instagram.com/scent_drip/" target="_blank" rel="noopener">Instagram</a>
         <a class="hidden" id="footer-whatsapp" target="_blank" rel="noopener">WhatsApp</a>
