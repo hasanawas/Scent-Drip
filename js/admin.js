@@ -265,7 +265,7 @@
         const stockCls = p.stock === 0 ? "stock-out" : p.stock <= 3 ? "stock-low" : "";
         return `
         <tr class="${p.is_active ? "" : "inactive"}">
-          <td>${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="" />` : `<div class="thumb"><img src="images/logo-mark.png" alt="" /></div>`}</td>
+          <td>${p.image_url ? `<img class="thumb" src="${esc(p.image_url)}" alt="" />` : `<div class="thumb"><img src="images/logo-mark-dark.png" alt="" /></div>`}</td>
           <td><strong>${esc(p.name)}</strong><br /><span class="card-meta">${[p.brand, p.size_ml ? p.size_ml + " ml" : "", p.category].filter(Boolean).map(esc).join(" · ")}</span></td>
           <td class="num ${stockCls}">${p.stock}</td>
           <td class="num">${money(p.cost_price)}</td>
