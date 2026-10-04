@@ -366,6 +366,21 @@ Some updates change the database (for example deleting orders and order tracking
 
 ---
 
+## 💬 Talk with SD (scent-matching chat)
+
+The **Talk with SD** button (bottom right of the shop) asks customers which **top**, **heart** and **base** notes they love (they can pick several in each step), then recommends perfumes:
+
+- **From our shop:** your perfumes whose notes match, with **Add to bag**.
+- **Perfect matches:** perfumes from a built-in library of about 60 well-known fragrances. If you sell one with the same name, it shows **In our shop**. If not, an **Ask us to get it** button opens WhatsApp with a ready-made message.
+
+**To let SD recommend your own perfumes:** Admin → Inventory → **Edit** → fill in **Top / Heart / Base notes** (comma separated, e.g. `Bergamot, Pink Pepper`). This needs the latest `supabase/schema.sql` run once in Supabase (see *After updating the code*).
+
+**To add perfumes to SD's library:** edit `js/notes-data.js` and copy one of the lines in the list.
+
+SD runs entirely in the browser, so it's free with no AI service needed. Free-text chat with AI (for example Cloudflare Workers AI's free allowance) can be added later as a next feature.
+
+---
+
 ## 🧴 Day to day
 
 | I want to… | Do this |
@@ -425,6 +440,8 @@ js/config.js            ← your settings (the only code file you need to edit)
 js/common.js            Shared helpers
 js/shop.js              Shop: list, bag, checkout
 js/admin.js             Admin: login, orders, inventory
+js/chatbot.js           Talk with SD chat
+js/notes-data.js        Note choices + library of well-known perfumes for SD
 supabase/schema.sql     Database tables, security rules, ordering, payments, email alerts
 functions/api/checkout.js         Starts a Stripe payment (runs on Cloudflare, keeps keys secret)
 functions/api/stripe-webhook.js   Receives "payment received" from Stripe
