@@ -79,7 +79,7 @@
   async function loadPerfumes() {
     const { data, error } = await db
       .from("perfumes")
-      .select("id,name,brand,description,category,size_ml,selling_price,stock,image_url,created_at")
+      .select("*") // includes the note columns when the database has them
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -233,7 +233,7 @@
         (!brand || p.brand === brand) &&
         Number(p.selling_price) >= lo &&
         Number(p.selling_price) <= hi &&
-        (!q || [p.name, p.brand, p.description].some((s) => (s || "").toLowerCase().includes(q)))
+        (!q || [p.name, p.brand, p.description, ...(p.top_notes || []), ...(p.middle_notes || []), ...(p.base_notes || [])].some((s) => (s || "").toLowerCase().includes(q)))
     );
     $("result-count").textContent = perfumes.length
       ? `${list.length} ${list.length === 1 ? "fragrance" : "fragrances"}`
@@ -269,6 +269,12 @@
     observeReveal($("grid"));
   }
 
+  function notesHtml(p) {
+    const rows = [["Top", p.top_notes], ["Heart", p.middle_notes], ["Base", p.base_notes]].filter(([, n]) => n && n.length);
+    if (!rows.length) return "";
+    return `<dl class="pyramid">${rows.map(([l, n]) => `<dt>${l}</dt><dd>${n.map(esc).join(", ")}</dd>`).join("")}</dl>`;
+  }
+
   function openProduct(id) {
     const p = perfumes.find((x) => x.id === id);
     if (!p) return;
@@ -282,6 +288,7 @@
           <p class="card-meta">${[p.size_ml ? p.size_ml + " ml" : "", p.category].filter(Boolean).map(esc).join(" · ")}</p>
           <p class="price">${money(p.selling_price)}</p>
           ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
+          ${notesHtml(p)}
           <button class="btn neon block" data-add="${p.id}" ${p.stock <= 0 ? "disabled" : ""}>
             ${p.stock <= 0 ? "Sold out" : "Add to bag"}
           </button>
@@ -623,6 +630,9 @@
   $("price-max").addEventListener("input", onPriceInput);
   $("clear-filters").addEventListener("click", clearFilters);
   document.addEventListener("keydown", (e) => e.key === "Escape" && closeAll());
+
+  // Lets "Talk with SD" read the perfumes and use the bag.
+  window.SDShop = { getPerfumes: () => perfumes, addToCart, openProduct };
 
   renderPaymentOptions();
   renderCartCount();

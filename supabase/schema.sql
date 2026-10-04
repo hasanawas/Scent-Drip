@@ -37,6 +37,11 @@ create table if not exists public.perfumes (
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+-- Fragrance notes (used by the "Talk with SD" chat and shown on each perfume)
+alter table public.perfumes
+  add column if not exists top_notes    text[] not null default '{}',
+  add column if not exists middle_notes text[] not null default '{}',
+  add column if not exists base_notes   text[] not null default '{}';
 
 -- ---------------------------------------------------------------------
 --  3. PERFUME COSTS — what YOU paid. Kept in a separate table so that

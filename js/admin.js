@@ -358,6 +358,9 @@
     for (const k of ["id", "name", "brand", "category", "size_ml", "cost_price", "selling_price", "stock", "supplier", "description", "image_url"]) {
       form.elements[k].value = v[k] ?? "";
     }
+    for (const k of ["top_notes", "middle_notes", "base_notes"]) {
+      form.elements[k].value = (v[k] || []).join(", ");
+    }
     form.elements.is_active.checked = !!v.is_active;
     const prev = $("img-preview");
     prev.src = v.image_url || "";
@@ -384,6 +387,12 @@
     prev.src = URL.createObjectURL(file);
     prev.classList.remove("hidden");
   });
+
+  // "bergamot, pink pepper" → ["Bergamot", "Pink Pepper"]
+  function parseNotes(text) {
+    const tidy = (window.SD_NOTES && window.SD_NOTES.tidy) || ((n) => n.trim());
+    return [...new Set(String(text).split(",").map(tidy).filter(Boolean))].slice(0, 20);
+  }
 
   async function uploadImage(file) {
     if (file.size > 5 * 1024 * 1024) throw new Error("Photo is too large (max 5 MB).");
@@ -424,17 +433,23 @@
         image_url: imageUrl,
         is_active: f.is_active.checked,
         updated_at: new Date().toISOString(),
+        top_notes: parseNotes(f.top_notes.value),
+        middle_notes: parseNotes(f.middle_notes.value),
+        base_notes: parseNotes(f.base_notes.value),
       };
 
       let id = f.id.value;
-      if (id) {
-        const { error } = await db.from("perfumes").update(row).eq("id", id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await db.from("perfumes").insert(row).select("id").single();
-        if (error) throw error;
-        id = data.id;
+      const write = (r) =>
+        id ? db.from("perfumes").update(r).eq("id", id) : db.from("perfumes").insert(r).select("id").single();
+      let { data, error } = await write(row);
+      if (error && /_notes/.test(error.message || "")) {
+        // The database doesn't have the note columns yet: save everything else.
+        delete row.top_notes; delete row.middle_notes; delete row.base_notes;
+        ({ data, error } = await write(row));
+        toast("Saved, but notes need a database update: re-run supabase/schema.sql in Supabase.", "error");
       }
+      if (error) throw error;
+      if (!id) id = data.id;
 
       const { error: costErr } = await db.from("perfume_costs").upsert({
         perfume_id: id,

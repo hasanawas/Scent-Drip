@@ -124,6 +124,12 @@
         <label>Supplier <span class="hint">(only you see this)</span><input class="input" name="supplier" maxlength="120" /></label>
       </div>
       <label>Description<textarea class="input" name="description" rows="3" maxlength="2000"></textarea></label>
+      <fieldset class="notes-fields">
+        <legend>Fragrance notes <span class="hint">(separate with commas. "Talk with SD" uses these to recommend this perfume)</span></legend>
+        <label>Top notes<input class="input" name="top_notes" placeholder="e.g. Bergamot, Pink Pepper" maxlength="300" /></label>
+        <label>Heart notes<input class="input" name="middle_notes" placeholder="e.g. Rose, Jasmine" maxlength="300" /></label>
+        <label>Base notes<input class="input" name="base_notes" placeholder="e.g. Vanilla, Amber, Musk" maxlength="300" /></label>
+      </fieldset>
       <label>Photo
         <div style="display:flex;gap:12px;align-items:center">
           <img id="img-preview" class="img-preview hidden" alt="" />
@@ -139,6 +145,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/notes-data.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>
