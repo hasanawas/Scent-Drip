@@ -381,6 +381,24 @@ SD runs entirely in the browser, so it's free with no AI service needed. Free-te
 
 ---
 
+## 📱 Scent Drip as a phone app
+
+The shop is an installable web app (PWA): app icon, full-screen, works offline, updates itself.
+
+**Install on Android without an APK:** open the shop in **Chrome** → tap **Get the app** in the footer (or ⋮ → **Install app** / **Add to Home screen**).
+**iPhone:** open in **Safari** → Share → **Add to Home Screen**.
+
+**Make an APK (free, with PWABuilder):**
+1. Go to https://www.pwabuilder.com → paste your live address (e.g. `https://scent-drip.your-name.workers.dev`) → **Start**.
+2. Click **Package for stores** → **Android** → **Generate package**. Keep the defaults. Package ID e.g. `com.scentdrip.app`.
+3. Download the zip. It contains the **APK** (to install on your phone), an **AAB** (for the Google Play Store), and a **signing key**. Keep the key and its passwords safe: you need the same key for every future update.
+4. Copy the APK to your phone → open it → allow **Install unknown apps** when Android asks → **Install**.
+5. Optional, to remove the address bar at the top of the app: send me the `assetlinks.json` file from the zip, and I'll publish it at `/.well-known/assetlinks.json`.
+
+The APK opens your live site, so every shop update appears in the app automatically. There's nothing to rebuild.
+
+---
+
 ## 🧴 Day to day
 
 | I want to… | Do this |
@@ -446,6 +464,7 @@ supabase/schema.sql     Database tables, security rules, ordering, payments, ema
 functions/api/checkout.js         Starts a Stripe payment (runs on Cloudflare, keeps keys secret)
 functions/api/stripe-webhook.js   Receives "payment received" from Stripe
 _headers                Security settings (Cloudflare)
+manifest.webmanifest, sw.js, images/app/   Phone-app (PWA) setup: name, icons, offline support
 worker.js, wrangler.jsonc, .assetsignore   Cloudflare Worker setup (serves the site + payment code)
 robots.txt              Keeps the admin page out of Google
 .github/workflows/keep-alive.yml   Keeps the free database awake

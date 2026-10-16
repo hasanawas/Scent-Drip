@@ -49,5 +49,30 @@
       </div>`;
   }
 
+  // Installable app: register the service worker and offer an "Get the app" button.
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+  }
+  let installPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    const btn = document.getElementById("install-app");
+    if (btn) btn.classList.remove("hidden");
+  });
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("#install-app");
+    if (!btn || !installPrompt) return;
+    e.preventDefault();
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") btn.classList.add("hidden");
+    installPrompt = null;
+  });
+  window.addEventListener("appinstalled", () => {
+    const btn = document.getElementById("install-app");
+    if (btn) btn.classList.add("hidden");
+  });
+
   window.SD = { cfg, db, isConfigured, money, esc, toast, setupNotice };
 })();
