@@ -572,9 +572,17 @@
     result.innerHTML = trackResultHtml(data);
   }
 
-  // Coming back from Stripe's payment page
+  // Coming back from Stripe's payment page (and app shortcuts: ?track=1, ?chat=1)
   function handlePaymentReturn() {
     const params = new URLSearchParams(location.search);
+    if (params.get("track") === "1") {
+      history.replaceState(null, "", location.pathname);
+      return openTracker();
+    }
+    if (params.get("chat") === "1") {
+      history.replaceState(null, "", location.pathname);
+      return setTimeout(() => window.SDChat && window.SDChat.open(), 300);
+    }
     if (params.get("paid") === "1" && /^\d+$/.test(params.get("order") || "")) {
       showSuccess(params.get("order"), `<p>Payment received ✅ Thank you! We'll contact you to arrange delivery.</p>`);
       show("drawer");
